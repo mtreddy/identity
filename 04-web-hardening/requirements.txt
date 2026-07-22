@@ -1,0 +1,6 @@
+Flask==3.1.0
+bcrypt==4.2.1
+cryptography==44.0.0
+Flask-Limiter==3.10.1
+# Feature 7: CSRF protection for POST forms.
+Flask-WTF==1.2.2

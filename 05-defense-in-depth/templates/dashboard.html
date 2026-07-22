@@ -1,0 +1,29 @@
+<!doctype html>
+<title>Dashboard</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 4rem auto; }
+  .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin: 0.75rem 0; }
+  .card h3 { margin: 0 0 0.25rem; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+  a { color: #0057d8; }
+  nav a { margin-left: 1rem; }
+</style>
+
+<div class="top">
+  <h1>Protected dashboard</h1>
+  <nav>
+    <a href="{{ url_for('change_password') }}">Change password</a>
+    <a href="{{ url_for('logout') }}">Log out</a>
+  </nav>
+</div>
+
+<p>Signed in as <strong>{{ email }}</strong>. Only you can see the resources below.</p>
+
+{% for r in resources %}
+  <div class="card">
+    <h3>{{ r["title"] }}</h3>
+    <div>{{ r["body"] }}</div>
+  </div>
+{% else %}
+  <p>You have no resources yet.</p>
+{% endfor %}
