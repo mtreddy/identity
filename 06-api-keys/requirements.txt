@@ -1,0 +1,4 @@
+Flask==3.1.0
+# Needed only for the self-signed "adhoc" HTTPS option (USE_ADHOC_TLS=1).
+cryptography==44.0.0
+# (Key hashing uses the standard library: hashlib, secrets.)

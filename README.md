@@ -59,8 +59,22 @@ Test accounts (from `seed.py`):
 12. Authentication logging (never logs passwords)
 13. Custom error pages (no stack-trace leakage)
 
+## Mechanism 06 — Machine / agent authentication
+
+How a non-human client (script, service, autonomous agent) authenticates to an
+API. JSON over `Authorization: Bearer` — no browser, cookie, or session.
+
+| Directory | Focus |
+|-----------|-------|
+| [`06-api-keys`](06-api-keys/) | **API keys:** long-lived, hashed-at-rest, revocable per-key credentials sent on every request; per-client resource isolation |
+| `07-jwt` *(planned)* | **JWT:** exchange an API key at a token endpoint for a short-lived, signed, scoped token the API verifies statelessly (OAuth2 client-credentials) |
+
+Key idea carried into 06: an API key is 256 bits of randomness, so it's hashed
+with **SHA-256 (fast)**, not bcrypt — slow hashing only helps low-entropy human
+passwords. See `06-api-keys/README.md` for the full threat model.
+
 ## Next mechanisms (planned)
-Signup + email verification + password reset · TOTP/2FA ·
-API keys / JWT for machine clients · OAuth2 · WebAuthn/passkeys.
+`07-jwt` (in progress) · signup + email verification + password reset ·
+TOTP/2FA · OAuth2 · WebAuthn/passkeys · mTLS.
 Given the sibling `agent-auth-research` work, machine/agent credential flows
-(API keys, JWT, mTLS) are a natural next focus.
+are the current focus.
