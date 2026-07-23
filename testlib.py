@@ -57,22 +57,44 @@ def clean(here):
         shutil.rmtree(os.path.join(here, d), ignore_errors=True)
 
 
-def start_server(here, env_extra=None, args=("app.py",), port=None):
-    """Launch the mechanism's server as a subprocess. Returns (proc, base_url)."""
+def start_server(here, env_extra=None, args=("app.py",), port=None,
+                 scheme="http", ready="http"):
+    """Launch the mechanism's server as a subprocess. Returns (proc, base_url).
+
+    ready="http" polls GET / for any HTTP response; ready="tcp" just waits for
+    the port to accept a connection (for mTLS servers that require a client
+    cert and have no open endpoint)."""
     port = str(port or os.environ.get("TEST_PORT") or _free_port())
     env = {**os.environ, "PORT": port}
     env.setdefault("COOKIE_SECURE", "0")   # tests run over http
     if env_extra:
         env.update(env_extra)
+    if env.get("USE_ADHOC_TLS") == "1":
+        scheme = "https"
     proc = subprocess.Popen(
         [sys.executable, *args], cwd=here, env=env,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
-    base = f"http://127.0.0.1:{port}"
-    scheme = "https" if env.get("USE_ADHOC_TLS") == "1" else "http"
     base = f"{scheme}://127.0.0.1:{port}"
-    _wait_ready(base, proc)
+    if ready == "tcp":
+        _wait_tcp(int(port), proc)
+    else:
+        _wait_ready(base, proc)
     return proc, base
+
+
+def _wait_tcp(port, proc, tries=60):
+    import socket
+    for _ in range(tries):
+        if proc.poll() is not None:
+            raise SystemExit(f"server exited early (code {proc.returncode})")
+        try:
+            s = socket.create_connection(("127.0.0.1", port), timeout=1)
+            s.close()
+            return
+        except OSError:
+            time.sleep(0.25)
+    raise SystemExit("server did not become ready (tcp)")
 
 
 def run(here, args, env_extra=None):
