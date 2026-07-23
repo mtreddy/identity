@@ -1,0 +1,5 @@
+Flask==3.1.0
+# EC keys for the client (ES256) + JWK handling.
+cryptography==44.0.0
+# JWT: access tokens (server) and DPoP proof JWTs (client + verify).
+PyJWT==2.10.1
