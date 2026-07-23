@@ -9,6 +9,21 @@
 set -u
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
+# Pick a Python >= 3.10 (mechanisms use 3.10+ syntax). Override with PYTHON=...
+PY="${PYTHON:-}"
+if [ -z "$PY" ]; then
+  for cand in python3.14 python3.13 python3.12 python3.11 python3.10 python3 \
+              /opt/homebrew/bin/python3.14 /opt/homebrew/bin/python3 \
+              /usr/local/bin/python3; do
+    p="$(command -v "$cand" 2>/dev/null)" || continue
+    if "$p" -c 'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3,10) else 1)' 2>/dev/null; then
+      PY="$p"; break
+    fi
+  done
+fi
+if [ -z "$PY" ]; then echo "error: need Python >= 3.10 (set PYTHON=...)"; exit 1; fi
+echo "using interpreter: $PY ($("$PY" --version 2>&1))"
+
 if [ "$#" -gt 0 ]; then
   dirs=("$@")
 else
@@ -26,7 +41,7 @@ for d in "${dirs[@]}"; do
   echo "──────── $d ────────"
   (
     cd "$ROOT/$d" || exit 1
-    python3 -m venv .venv >/dev/null 2>&1
+    "$PY" -m venv .venv >/dev/null 2>&1
     ./.venv/bin/pip install -q -r requirements.txt >/dev/null 2>&1
     ./.venv/bin/python test.py
   )

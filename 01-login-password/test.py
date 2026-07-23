@@ -11,6 +11,7 @@ EMAIL, PW = "alice@example.com", "correct-horse-battery-staple"
 
 
 def main():
+    T.clean(HERE)
     T.run(HERE, ["seed.py"])
     proc, base = T.start_server(HERE)
     jar = "/tmp/.c01"

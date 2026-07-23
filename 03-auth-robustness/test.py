@@ -12,6 +12,7 @@ KEY = secrets.token_hex(32)
 
 
 def main():
+    T.clean(HERE)
     T.run(HERE, ["seed.py"], env_extra={"SECRET_KEY": KEY})
     proc, base = T.start_server(HERE, env_extra={"SECRET_KEY": KEY})
 

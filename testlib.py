@@ -36,6 +36,27 @@ def check(name, ok, detail=""):
     return ok
 
 
+def clean(here):
+    """Delete generated artifacts so a test starts from a clean slate (makes
+    tests repeatable — seeds that print secrets only do so on first run)."""
+    import glob
+    import shutil
+    for name in ("identity.db", "app.db", "auth.log", "server.log", "seed.out",
+                 "oidc_private_key.pem", "idp_key.pem", "idp_cert.pem"):
+        try:
+            os.remove(os.path.join(here, name))
+        except OSError:
+            pass
+    for pat in ("*.log", "*.pem"):
+        for f in glob.glob(os.path.join(here, pat)):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+    for d in (".flask_session", "certs", "svids"):
+        shutil.rmtree(os.path.join(here, d), ignore_errors=True)
+
+
 def start_server(here, env_extra=None, args=("app.py",), port=None):
     """Launch the mechanism's server as a subprocess. Returns (proc, base_url)."""
     port = str(port or os.environ.get("TEST_PORT") or _free_port())

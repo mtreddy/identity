@@ -12,6 +12,7 @@ KEY = secrets.token_hex(32)
 
 
 def main():
+    T.clean(HERE)
     # Feature 1: refuse to boot without SECRET_KEY
     r = T.run(HERE, ["app.py"], env_extra={"SECRET_KEY": ""})
     T.check("server refuses to boot without SECRET_KEY",
