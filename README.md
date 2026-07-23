@@ -74,8 +74,22 @@ Key idea carried into 06: an API key is 256 bits of randomness, so it's hashed
 with **SHA-256 (fast)**, not bcrypt — slow hashing only helps low-entropy human
 passwords. See `06-api-keys/README.md` for the full threat model.
 
+## Mechanism 09 — Delegated access (OAuth2)
+
+How a user lets a *separate app* access their data **without sharing their
+password** — "Log in with…" / "Connect your account". Browser redirect flow with
+user login + consent.
+
+| Directory | Focus |
+|-----------|-------|
+| [`09-oauth2-auth-code-pkce`](09-oauth2-auth-code-pkce/) | **Authorization Code + PKCE:** authorization server + resource server + demo client; user login (bcrypt) → consent → one-time code → token exchange with PKCE → scoped JWT access token |
+
+Ties the series together: the user still authenticates with a **bcrypt password**
+(mechanism 01) and the client receives a **JWT access token** (mechanism 07). Runs
+in a browser, or drive the raw protocol with `client_example.py`.
+
 ## Next mechanisms (planned)
-Signup + email verification + password reset · TOTP/2FA · OAuth2 (full
-authorization-code flow) · WebAuthn/passkeys · mTLS.
+Signup + email verification + password reset · TOTP/2FA · OpenID Connect
+(`id_token`) · WebAuthn/passkeys · mTLS.
 Given the sibling `agent-auth-research` work, machine/agent credential flows
 are the current focus.

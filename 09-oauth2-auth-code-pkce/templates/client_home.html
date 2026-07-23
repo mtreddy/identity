@@ -1,0 +1,19 @@
+<!doctype html>
+<title>Demo app</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 26rem; margin: 4rem auto; }
+  .cta { display:inline-block; margin-top:1rem; padding:.6rem 1.2rem; background:#0057d8;
+         color:#fff; border-radius:6px; text-decoration:none; }
+  .note { color:#666; font-size:.85rem; margin-top:2rem; }
+</style>
+
+<h1>Demo web app</h1>
+<p>This app (the OAuth <em>client</em>) wants to read your resources from the
+resource server. Click below to start the Authorization Code + PKCE flow: you'll
+log in and consent, then the app receives a scoped access token.</p>
+
+<a class="cta" href="{{ url_for('client_start') }}">Connect &amp; authorize</a>
+
+<p class="note">
+  {% if user %}Signed in as {{ user["email"] }} · <a href="{{ url_for('logout') }}">log out</a>{% else %}You are not signed in yet.{% endif %}
+</p>
