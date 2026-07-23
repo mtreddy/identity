@@ -7,6 +7,8 @@ __pycache__/
 identity.db
 *.log
 .flask_session/
+# OIDC signing key (generated locally; never commit private keys)
+*.pem
 
 # Test cookie jars
 *.txt

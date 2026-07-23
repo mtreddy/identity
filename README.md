@@ -74,22 +74,24 @@ Key idea carried into 06: an API key is 256 bits of randomness, so it's hashed
 with **SHA-256 (fast)**, not bcrypt — slow hashing only helps low-entropy human
 passwords. See `06-api-keys/README.md` for the full threat model.
 
-## Mechanism 09 — Delegated access (OAuth2)
+## Mechanism 09–10 — Delegated access & federated identity (OAuth2 / OIDC)
 
-How a user lets a *separate app* access their data **without sharing their
-password** — "Log in with…" / "Connect your account". Browser redirect flow with
-user login + consent.
+How a user lets a *separate app* act for them **without sharing their password**
+— "Log in with…" / "Connect your account". Browser redirect flow with user
+login + consent.
 
 | Directory | Focus |
 |-----------|-------|
-| [`09-oauth2-auth-code-pkce`](09-oauth2-auth-code-pkce/) | **Authorization Code + PKCE:** authorization server + resource server + demo client; user login (bcrypt) → consent → one-time code → token exchange with PKCE → scoped JWT access token |
+| [`09-oauth2-auth-code-pkce`](09-oauth2-auth-code-pkce/) | **OAuth2 Authorization Code + PKCE (authorization):** authorization server + resource server + demo client; user login (bcrypt) → consent → one-time code → PKCE token exchange → scoped JWT access token |
+| [`10-openid-connect`](10-openid-connect/) | **OpenID Connect (authentication):** adds the `openid` scope, a signed **`id_token`**, `nonce`, **RS256 + JWKS** (asymmetric signing), discovery, and `/userinfo` — the "who is the user" layer on top of 09 |
 
 Ties the series together: the user still authenticates with a **bcrypt password**
-(mechanism 01) and the client receives a **JWT access token** (mechanism 07). Runs
-in a browser, or drive the raw protocol with `client_example.py`.
+(mechanism 01), and 10 upgrades token signing from the shared-secret **HS256**
+(07–09) to **asymmetric RS256** verified via JWKS. Both run in a browser or via
+`client_example.py`.
 
 ## Next mechanisms (planned)
-Signup + email verification + password reset · TOTP/2FA · OpenID Connect
-(`id_token`) · WebAuthn/passkeys · mTLS.
+Signup + email verification + password reset · TOTP/2FA · WebAuthn/passkeys ·
+mTLS · SAML.
 Given the sibling `agent-auth-research` work, machine/agent credential flows
 are the current focus.

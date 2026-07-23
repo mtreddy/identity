@@ -1,0 +1,35 @@
+<!doctype html>
+<title>Signed in</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 4rem auto; }
+  .card { border:1px solid #ddd; border-radius:10px; padding:1rem; margin:.75rem 0; }
+  .id { border-left:4px solid #0a7d33; }
+  code { background:#f4f4f4; padding:.1rem .3rem; border-radius:3px; }
+  a { color:#0057d8; }
+  .muted { color:#666; font-size:.85rem; }
+</style>
+
+<h1>✓ Signed in</h1>
+
+<div class="card id">
+  <strong>Authenticated as {{ id_claims.get("name") or id_claims["email"] }}</strong><br>
+  <span class="muted">
+    from the <code>id_token</code> — sub={{ id_claims["sub"] }},
+    email={{ id_claims.get("email") }}, verified={{ id_claims.get("email_verified") }}<br>
+    (signature checked against the provider's JWKS; nonce verified)
+  </span>
+</div>
+
+<p class="muted">Access token scope <code>{{ scope }}</code>, expires in {{ expires_in }}s.</p>
+
+<h3>UserInfo endpoint (/userinfo)</h3>
+<div class="card">{{ userinfo }}</div>
+
+<h3>Resources (/api/resources)</h3>
+{% for r in resources %}
+  <div class="card"><strong>{{ r["title"] }}</strong><br>{{ r["body"] }}</div>
+{% else %}
+  <div class="card">No resources.</div>
+{% endfor %}
+
+<p><a href="{{ url_for('client_home') }}">Start over</a></p>
