@@ -119,6 +119,14 @@ Ties the series together: the user still authenticates with a **bcrypt password*
 | [`14-saml`](14-saml/) | **SAML 2.0 Web Browser SSO:** the enterprise sibling of OIDC — IdP + SP + demo; a signed XML **assertion** (XML-DSig, `signxml`) carries identity, verified against the IdP cert with audience/`InResponseTo`/conditions/replay checks |
 | [`18-scim`](18-scim/) | **SCIM 2.0 provisioning:** the lifecycle layer for SSO — a bearer-authed REST API (`/scim/v2`) where an IdP creates, updates, **deactivates**, and deletes Users/Groups (CRUD + PATCH + filter + pagination), keeping the app's directory in sync as people join and leave |
 
+## Application security foundations
+
+Cross-cutting web-security topics that underpin the mechanisms above.
+
+| Directory | Focus |
+|-----------|-------|
+| [`20-sql-injection`](20-sql-injection/) | **SQL injection defense:** vulnerable vs. safe queries side by side; real exploits (auth bypass, tautology, UNION exfiltration, ORDER BY injection) that fall on `/vuln/*` and hold on `/safe/*`. Primary fix: **parameterized queries**; plus identifier allow-lists, least privilege, the driver stacked-query caveat |
+
 ## Next mechanisms (planned)
 See [TODO.md](TODO.md) for the backlog — next up are **OAuth2 Device
 Authorization Grant (RFC 8628)** and **magic-link / email OTP**, plus
