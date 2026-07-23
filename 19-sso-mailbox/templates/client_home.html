@@ -1,0 +1,21 @@
+<!doctype html>
+<title>MailViewer</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 28rem; margin: 4rem auto; }
+  .cta { display:inline-block; margin-top:1rem; padding:.6rem 1.2rem; background:#0057d8;
+         color:#fff; border-radius:6px; text-decoration:none; }
+  .note { color:#666; font-size:.85rem; margin-top:2rem; }
+  .tag { color:#0057d8; font-size:.8rem; }
+</style>
+
+<p class="tag">MailViewer (a third-party app)</p>
+<h1>📬 Connect your mailbox</h1>
+<p>MailViewer would like to sign you in and read your inbox. Click below to
+authenticate with SSO and grant the <code>mail:read</code> permission — MailViewer
+never sees your password, only a scoped access token.</p>
+
+<a class="cta" href="{{ url_for('client_start') }}">Connect my mailbox</a>
+
+<p class="note">
+  {% if user %}Signed in as {{ user["email"] }} · <a href="{{ url_for('logout') }}">log out</a>{% else %}You are not signed in yet.{% endif %}
+</p>

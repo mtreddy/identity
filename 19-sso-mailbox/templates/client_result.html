@@ -1,0 +1,42 @@
+<!doctype html>
+<title>Your mailbox</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 36rem; margin: 3rem auto; }
+  .id { border:1px solid #ddd; border-left:4px solid #0a7d33; border-radius:8px; padding:.8rem 1rem; }
+  code { background:#f4f4f4; padding:.1rem .3rem; border-radius:3px; }
+  a { color:#0057d8; } .muted { color:#666; font-size:.85rem; }
+  ul.inbox { list-style:none; padding:0; margin:1rem 0; }
+  ul.inbox li { border:1px solid #eee; border-radius:8px; padding:.7rem .9rem; margin:.5rem 0; }
+  .row { display:flex; justify-content:space-between; gap:1rem; }
+  .from { font-weight:600; } .subj {} .body { color:#555; font-size:.9rem; margin-top:.2rem; }
+  .when { color:#999; font-size:.8rem; white-space:nowrap; }
+  .dot { color:#0057d8; }
+</style>
+
+<h1>📬 MailViewer</h1>
+
+<div class="id">
+  <strong>Signed in as {{ id_claims.get("name") or id_claims["email"] }}</strong>
+  <span class="muted"> · {{ id_claims.get("email") }}</span><br>
+  <span class="muted">Identity from the verified <code>id_token</code>; inbox read with a
+    <code>{{ scope }}</code> access token (expires in {{ expires_in }}s).</span>
+</div>
+
+<h3>Inbox</h3>
+<ul class="inbox">
+{% for m in messages %}
+  <li>
+    <div class="row">
+      <span class="from">{% if m["unread"] %}<span class="dot">●</span> {% endif %}{{ m["from_addr"] }}</span>
+      <span class="when">{{ m["received_at"] }}</span>
+    </div>
+    <div class="subj">{{ m["subject"] }}</div>
+    <div class="body">{{ m["body"] }}</div>
+  </li>
+{% else %}
+  <li>No messages.</li>
+{% endfor %}
+</ul>
+
+<p class="muted"><a href="{{ url_for('client_home') }}">Start over</a> ·
+   <a href="{{ url_for('logout') }}">Log out</a></p>

@@ -1,0 +1,35 @@
+<!doctype html>
+<title>Authorize {{ client["name"] }}</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 26rem; margin: 4rem auto; }
+  .card { border:1px solid #ddd; border-radius:10px; padding:1.5rem; }
+  ul { padding-left:1.1rem; }
+  .row { display:flex; gap:.75rem; margin-top:1.25rem; }
+  button { padding:.55rem 1.1rem; border-radius:6px; border:1px solid #bbb; cursor:pointer; }
+  .approve { background:#0057d8; color:#fff; border-color:#0057d8; }
+  .who { color:#666; font-size:.85rem; }
+</style>
+
+<div class="card">
+  <h1>Authorize <em>{{ client["name"] }}</em></h1>
+  <p class="who">Signed in as {{ user["email"] }} · <a href="{{ url_for('logout') }}">not you?</a></p>
+  <p><strong>{{ client["name"] }}</strong> is requesting permission to:</p>
+  <ul>
+    {% for name, desc in scopes %}<li>{{ desc }} <code>({{ name }})</code></li>{% endfor %}
+  </ul>
+
+  <form method="post" action="{{ url_for('authorize_decision') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="client_id" value="{{ params['client_id'] }}">
+    <input type="hidden" name="redirect_uri" value="{{ params['redirect_uri'] }}">
+    <input type="hidden" name="scope" value="{{ params['scope'] }}">
+    <input type="hidden" name="state" value="{{ params['state'] }}">
+    <input type="hidden" name="nonce" value="{{ params['nonce'] }}">
+    <input type="hidden" name="code_challenge" value="{{ params['code_challenge'] }}">
+    <input type="hidden" name="code_challenge_method" value="{{ params['code_challenge_method'] }}">
+    <div class="row">
+      <button class="approve" name="decision" value="approve" type="submit">Allow</button>
+      <button name="decision" value="deny" type="submit">Deny</button>
+    </div>
+  </form>
+</div>
