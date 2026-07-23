@@ -27,6 +27,25 @@ diff -ru 03-auth-robustness 04-web-hardening
 diff -ru 04-web-hardening 05-defense-in-depth
 ```
 
+## Tests
+
+Every mechanism has a self-contained `test.py` asserting both its happy path and
+the security-negative checks (e.g. PKCE wrong-verifier, id_token
+nonce/audience/`alg:none` rejection, TOTP RFC-6238 vectors, mTLS untrusted-CA
+refusal, cert-bound/DPoP replay, SAML tamper/replay, the SQLi exploits). Run one,
+or all:
+
+```bash
+./run-tests.sh                 # every mechanism, each in its own venv
+./run-tests.sh 09-* 16-totp    # only the named directories
+
+# or a single mechanism directly (inside its venv):
+cd 10-openid-connect && python test.py
+```
+
+Each `test.py` starts the app, runs its checks, prints PASS/FAIL, and exits
+nonzero on any failure. The shared harness is `testlib.py`. All 20 pass.
+
 ### Quick start (any directory)
 
 ```bash
