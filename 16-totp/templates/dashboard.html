@@ -1,0 +1,20 @@
+<!doctype html>
+<title>Dashboard</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 28rem; margin: 4rem auto; }
+  .card { border:1px solid #ddd; border-left:4px solid #0a7d33; border-radius:8px; padding:1rem; }
+  a { color:#0057d8; } .muted { color:#666; font-size:.85rem; }
+</style>
+
+<h1>✓ Signed in</h1>
+<div class="card">
+  <strong>{{ user['name'] or user['email'] }}</strong> ({{ user['email'] }})<br>
+  <span class="muted">
+    {% if user['totp_enabled'] %}Authenticated with password + TOTP (two factors).
+    {% else %}Password only — <a href="{{ url_for('setup') }}">enable two-factor</a>.{% endif %}
+  </span>
+</div>
+<p class="muted">
+  <a href="{{ url_for('setup') }}">Manage 2FA</a> ·
+  <a href="{{ url_for('logout') }}">Log out</a>
+</p>

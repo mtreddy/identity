@@ -43,6 +43,12 @@ Test accounts (from `seed.py`):
 `alice@example.com` / `correct-horse-battery-staple` ·
 `bob@example.com` / `hunter2`
 
+### Second factor
+
+| Directory | Focus |
+|-----------|-------|
+| [`16-totp`](16-totp/) | **TOTP two-factor (RFC 6238):** password (factor 1) + a 6-digit time-based code from an authenticator app (factor 2); HOTP/TOTP implemented from the standard library, with enrollment, ±1-step skew, rate limiting |
+
 ## The 13 hardening items (mechanism 01)
 
 1. Secret key from environment (no hard-coded key)

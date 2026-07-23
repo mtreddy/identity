@@ -1,0 +1,18 @@
+<!doctype html>
+<title>Two-factor</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 22rem; margin: 4rem auto; }
+  input { width:100%; padding:.5rem; box-sizing:border-box; font-size:1.4rem;
+          letter-spacing:.3em; text-align:center; }
+  button { margin-top:1rem; padding:.5rem 1rem; }
+  .error { color:#b00020; margin-top:1rem; }
+</style>
+
+<h1>Enter your code</h1>
+<p>Step 2 of 2: the 6-digit code from your authenticator app.</p>
+<form method="post" action="{{ url_for('verify') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input name="code" inputmode="numeric" pattern="[0-9]*" maxlength="6" autofocus required>
+  <button type="submit">Verify</button>
+</form>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
