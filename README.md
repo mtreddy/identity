@@ -85,6 +85,7 @@ authenticates during the **TLS handshake** with an X.509 client certificate. No
 | [`11-mtls`](11-mtls/) | **Mutual TLS:** self-contained CA issues server + per-agent client certs; server requires a client cert (`CERT_REQUIRED`); identity = the verified cert's CN + fingerprint; fingerprint allow-list for revocation |
 | [`12-cert-bound-tokens`](12-cert-bound-tokens/) | **Certificate-bound tokens (RFC 8705):** mTLS (11) + JWT (07) — the token carries `cnf.x5t#S256` (the client cert thumbprint); every call must present the matching cert, so a stolen token can't be replayed |
 | [`13-dpop`](13-dpop/) | **DPoP (RFC 9449):** same sender-constraint as 12 but **without mTLS** — the client signs a per-request proof with its own key; the token carries `cnf.jkt` (the key thumbprint), so a stolen token is useless without the private key |
+| [`15-spiffe`](15-spiffe/) | **SPIFFE / SVID:** workload identity — a SPIFFE ID (`spiffe://…`) in an X.509 URI SAN (**X.509-SVID**, workload mTLS) or a **JWT-SVID**, verified against a trust bundle and authorized by a SPIFFE-ID policy |
 
 Unlike a bearer token, the client must hold the **private key**, so a leaked
 request/log can't be replayed (11) — and 12 carries that guarantee up into the

@@ -17,3 +17,5 @@ certs/
 # Test cookie jars
 *.txt
 !requirements.txt
+# SPIFFE SVIDs + trust bundle (generated locally)
+svids/
