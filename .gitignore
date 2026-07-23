@@ -9,6 +9,10 @@ identity.db
 .flask_session/
 # OIDC signing key (generated locally; never commit private keys)
 *.pem
+# mTLS demo PKI (generated locally; never commit CA/keys/certs)
+certs/
+*.crt
+*.key
 
 # Test cookie jars
 *.txt

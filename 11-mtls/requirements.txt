@@ -1,0 +1,5 @@
+Flask==3.1.0
+# X.509 certificate authority + cert generation (and TLS glue).
+cryptography==44.0.0
+# (mTLS uses the standard library ssl module; the identity comes from the
+#  client certificate, so there is no bcrypt/JWT/token dependency here.)

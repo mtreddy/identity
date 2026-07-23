@@ -74,6 +74,20 @@ Key idea carried into 06: an API key is 256 bits of randomness, so it's hashed
 with **SHA-256 (fast)**, not bcrypt — slow hashing only helps low-entropy human
 passwords. See `06-api-keys/README.md` for the full threat model.
 
+## Mechanism 11 — mTLS (certificate-based machine identity)
+
+The certificate counterpart to 06–08: instead of a bearer secret, the client
+authenticates during the **TLS handshake** with an X.509 client certificate. No
+`Authorization` header — identity lives in the transport.
+
+| Directory | Focus |
+|-----------|-------|
+| [`11-mtls`](11-mtls/) | **Mutual TLS:** self-contained CA issues server + per-agent client certs; server requires a client cert (`CERT_REQUIRED`); identity = the verified cert's CN + fingerprint; fingerprint allow-list for revocation |
+
+Unlike a bearer token, the client must hold the **private key**, so a leaked
+request/log can't be replayed. See `11-mtls/README.md` for the mTLS-vs-token
+trade-offs.
+
 ## Mechanism 09–10 — Delegated access & federated identity (OAuth2 / OIDC)
 
 How a user lets a *separate app* act for them **without sharing their password**
