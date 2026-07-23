@@ -96,7 +96,10 @@ def logout():
 
 
 if __name__ == "__main__":
+    import os
     # Ensure the schema exists so the server can start even before seeding.
     db.init_schema()
-    # 127.0.0.1 keeps this bound to your machine only.
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    # 127.0.0.1 keeps this bound to your machine only. PORT is overridable
+    # (macOS often uses 5000 for AirPlay).
+    port = int(os.environ.get("PORT", "5000"))
+    app.run(host="127.0.0.1", port=port, debug=True)

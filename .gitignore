@@ -19,3 +19,4 @@ certs/
 !requirements.txt
 # SPIFFE SVIDs + trust bundle (generated locally)
 svids/
+app.db
