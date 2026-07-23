@@ -16,6 +16,15 @@ with a `client_example.py` and a README documenting the threat model.
 
 ## Other candidate mechanisms
 
+- [ ] **CORS + browser SPA client (`20-cors-spa`)** — split the client and API
+  onto **different origins** so CORS actually applies: a browser SPA (origin A)
+  calling a bearer-token API (origin B). Show correct **preflight (`OPTIONS`)**
+  handling, an explicit **origin allow-list** (not `*`), `Access-Control-Allow-
+  Credentials` done right, and the common **misconfigurations** (reflecting any
+  `Origin` with credentials). Teachable point: **CORS relaxes the same-origin
+  policy — it is not a defense** (contrast with the CSRF protection in 04/09/10).
+  Pairs naturally with the token APIs (06–08, 13). Alternatively, retrofit an
+  origin-allow-listed CORS layer onto the resource server in `19-sso-mailbox`.
 - [ ] **OAuth2 Token Exchange (RFC 8693)** — delegation / impersonation between
   services (act-as / on-behalf-of).
 - [ ] **`private_key_jwt` client authentication (RFC 7523)** — asymmetric client
