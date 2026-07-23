@@ -116,6 +116,7 @@ Ties the series together: the user still authenticates with a **bcrypt password*
 `client_example.py`.
 
 | [`14-saml`](14-saml/) | **SAML 2.0 Web Browser SSO:** the enterprise sibling of OIDC — IdP + SP + demo; a signed XML **assertion** (XML-DSig, `signxml`) carries identity, verified against the IdP cert with audience/`InResponseTo`/conditions/replay checks |
+| [`18-scim`](18-scim/) | **SCIM 2.0 provisioning:** the lifecycle layer for SSO — a bearer-authed REST API (`/scim/v2`) where an IdP creates, updates, **deactivates**, and deletes Users/Groups (CRUD + PATCH + filter + pagination), keeping the app's directory in sync as people join and leave |
 
 ## Next mechanisms (planned)
 Signup + email verification + password reset · TOTP/2FA · WebAuthn/passkeys ·
