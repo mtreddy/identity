@@ -68,6 +68,7 @@ API. JSON over `Authorization: Bearer` — no browser, cookie, or session.
 |-----------|-------|
 | [`06-api-keys`](06-api-keys/) | **API keys:** long-lived, hashed-at-rest, revocable per-key credentials sent on every request; per-client resource isolation |
 | [`07-jwt`](07-jwt/) | **JWT:** exchange an API key at a token endpoint for a short-lived, signed, scoped token the API verifies statelessly (OAuth2 client-credentials) |
+| [`08-token-lifecycle`](08-token-lifecycle/) | **Refresh + revocation + introspection:** revocable refresh tokens with rotation & reuse detection, a `jti` deny-list to kill access tokens before expiry, and an RFC 7662 `/introspect` endpoint |
 
 Key idea carried into 06: an API key is 256 bits of randomness, so it's hashed
 with **SHA-256 (fast)**, not bcrypt — slow hashing only helps low-entropy human
