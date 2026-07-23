@@ -1,0 +1,9 @@
+Flask==3.1.0
+bcrypt==4.2.1
+# signxml 5.x requires a recent cryptography.
+cryptography==49.0.0
+# XML handling + XML Digital Signatures. We use a vetted XML-DSig library on
+# purpose: hand-rolling XML canonicalization is a classic source of SAML
+# signature-wrapping vulnerabilities.
+lxml==6.1.1
+signxml==5.1.0

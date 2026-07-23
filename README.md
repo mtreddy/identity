@@ -107,6 +107,8 @@ Ties the series together: the user still authenticates with a **bcrypt password*
 (07–09) to **asymmetric RS256** verified via JWKS. Both run in a browser or via
 `client_example.py`.
 
+| [`14-saml`](14-saml/) | **SAML 2.0 Web Browser SSO:** the enterprise sibling of OIDC — IdP + SP + demo; a signed XML **assertion** (XML-DSig, `signxml`) carries identity, verified against the IdP cert with audience/`InResponseTo`/conditions/replay checks |
+
 ## Next mechanisms (planned)
 Signup + email verification + password reset · TOTP/2FA · WebAuthn/passkeys ·
 mTLS · SAML.

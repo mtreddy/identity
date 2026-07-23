@@ -1,0 +1,16 @@
+<!doctype html>
+<title>Signing you in…</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 26rem; margin: 6rem auto; text-align:center; color:#444; }
+</style>
+
+<p>Returning you to the application…</p>
+
+<!-- HTTP-POST binding: the browser auto-submits the signed SAMLResponse to the
+     SP's Assertion Consumer Service. -->
+<form id="saml" method="post" action="{{ acs_url }}">
+  <input type="hidden" name="SAMLResponse" value="{{ saml_response }}">
+  <input type="hidden" name="RelayState" value="{{ relay_state }}">
+  <noscript><button type="submit">Continue</button></noscript>
+</form>
+<script>document.getElementById('saml').submit();</script>

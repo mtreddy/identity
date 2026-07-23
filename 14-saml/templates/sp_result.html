@@ -1,0 +1,20 @@
+<!doctype html>
+<title>Signed in</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 30rem; margin: 4rem auto; }
+  .card { border:1px solid #ddd; border-left:4px solid #0a7d33; border-radius:8px; padding:1rem; }
+  a { color:#0057d8; } .muted { color:#666; font-size:.85rem; }
+</style>
+
+<h1>✓ Signed in via SAML</h1>
+<div class="card">
+  <strong>{{ user.get('name') or user['nameid'] }}</strong><br>
+  <span class="muted">
+    NameID: {{ user['nameid'] }}<br>
+    email attribute: {{ user.get('email') }}<br>
+    (assertion signature verified against the IdP certificate; audience,
+    conditions and InResponseTo checked)
+  </span>
+</div>
+<p class="muted"><a href="{{ url_for('sp_home') }}">Home</a> ·
+   <a href="{{ url_for('logout') }}">Log out</a></p>

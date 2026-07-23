@@ -1,0 +1,21 @@
+<!doctype html>
+<title>Service Provider</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 26rem; margin: 4rem auto; }
+  .cta { display:inline-block; margin-top:1rem; padding:.6rem 1.2rem; background:#0057d8;
+         color:#fff; border-radius:6px; text-decoration:none; }
+  .tag { color:#0057d8; font-size:.8rem; }
+  .muted { color:#666; font-size:.85rem; margin-top:2rem; }
+</style>
+
+<p class="tag">Service Provider</p>
+<h1>Demo app</h1>
+{% if user %}
+  <p>Signed in as <strong>{{ user.get('name') or user['nameid'] }}</strong>
+     ({{ user['nameid'] }}).</p>
+  <p class="muted"><a href="{{ url_for('logout') }}">Log out</a></p>
+{% else %}
+  <p>This app uses SAML SSO. Click below to authenticate at the Identity
+     Provider and be returned with a signed assertion.</p>
+  <a class="cta" href="{{ url_for('sp_login') }}">Sign in with SSO</a>
+{% endif %}

@@ -1,0 +1,28 @@
+<!doctype html>
+<title>IdP — Sign in</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 22rem; margin: 4rem auto; }
+  label { display:block; margin:.75rem 0 .25rem; }
+  input { width:100%; padding:.5rem; box-sizing:border-box; }
+  button { margin-top:1rem; padding:.5rem 1rem; }
+  .error { color:#b00020; margin-top:1rem; }
+  .hint { color:#666; font-size:.85rem; margin-top:2rem; }
+  .tag { color:#0057d8; font-size:.8rem; }
+</style>
+
+<p class="tag">Identity Provider</p>
+<h1>Sign in</h1>
+<p>Authenticate to continue to the Service Provider.</p>
+
+<form method="post" action="{{ url_for('idp_login') }}">
+  <input type="hidden" name="SAMLRequest" value="{{ saml_request }}">
+  <input type="hidden" name="RelayState" value="{{ relay_state }}">
+  <label for="email">Email</label>
+  <input id="email" name="email" type="email" autofocus required>
+  <label for="password">Password</label>
+  <input id="password" name="password" type="password" required>
+  <button type="submit">Log in</button>
+</form>
+
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<p class="hint">Demo user (from seed.py):<br>user@example.com / correct-horse-battery-staple</p>
