@@ -43,11 +43,12 @@ Test accounts (from `seed.py`):
 `alice@example.com` / `correct-horse-battery-staple` ·
 `bob@example.com` / `hunter2`
 
-### Second factor
+### Second factor & passwordless
 
 | Directory | Focus |
 |-----------|-------|
 | [`16-totp`](16-totp/) | **TOTP two-factor (RFC 6238):** password (factor 1) + a 6-digit time-based code from an authenticator app (factor 2); HOTP/TOTP implemented from the standard library, with enrollment, ±1-step skew, rate limiting |
+| [`17-webauthn`](17-webauthn/) | **WebAuthn / passkeys:** phishing-resistant public-key login — the device signs a challenge bound to the origin; server stores only public keys. Ceremonies + signature verification hand-rolled, with a software authenticator for headless runs and a browser page |
 
 ## The 13 hardening items (mechanism 01)
 

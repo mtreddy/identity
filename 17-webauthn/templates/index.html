@@ -1,0 +1,59 @@
+<!doctype html>
+<title>Passkeys (WebAuthn)</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 26rem; margin: 4rem auto; }
+  input { width:100%; padding:.5rem; box-sizing:border-box; }
+  button { margin-top:.75rem; padding:.55rem 1rem; }
+  .card { border:1px solid #ddd; border-left:4px solid #0a7d33; border-radius:8px; padding:1rem; }
+  .muted { color:#666; font-size:.85rem; } .error { color:#b00020; } a { color:#0057d8; }
+</style>
+
+{% if user %}
+  <h1>✓ Signed in</h1>
+  <div class="card"><strong>{{ user['name'] or user['email'] }}</strong> ({{ user['email'] }})<br>
+    <span class="muted">Authenticated with a passkey — no password involved.</span></div>
+  <p class="muted"><a href="#" onclick="fetch('/logout',{method:'POST'}).then(()=>location.reload())">Log out</a></p>
+{% else %}
+  <h1>Passkey sign-in</h1>
+  <p class="muted">WebAuthn public-key login. Register a passkey (your browser
+    will prompt for Touch ID / a security key), then sign in with it.</p>
+  <label>Email</label>
+  <input id="email" type="email" value="user@example.com">
+  <button onclick="register()">Register a passkey</button>
+  <button onclick="login()">Sign in with passkey</button>
+  <p id="msg" class="muted"></p>
+{% endif %}
+
+<script>
+const enc = b => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const dec = s => { s = s.replace(/-/g,'+').replace(/_/g,'/'); const b = atob(s); return Uint8Array.from(b, c => c.charCodeAt(0)); };
+const msg = t => { const m = document.getElementById('msg'); if (m) m.textContent = t; };
+const jpost = (p,o) => fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)}).then(r=>r.json().then(j=>({ok:r.ok,j})));
+
+async function register() {
+  const email = document.getElementById('email').value;
+  const {j: o} = await jpost('/register/begin', {email});
+  o.challenge = dec(o.challenge); o.user.id = dec(o.user.id);
+  const cred = await navigator.credentials.create({publicKey: o});
+  const r = await jpost('/register/finish', {
+    id: cred.id, rawId: enc(cred.rawId), type: cred.type,
+    response: { clientDataJSON: enc(cred.response.clientDataJSON),
+                attestationObject: enc(cred.response.attestationObject) }});
+  msg(r.ok ? 'Passkey registered — now sign in.' : 'Register failed: ' + (r.j.detail||r.j.error));
+}
+
+async function login() {
+  const email = document.getElementById('email').value;
+  const {ok, j: o} = await jpost('/login/begin', {email});
+  if (!ok) return msg('Login begin failed: ' + (o.error||''));
+  o.challenge = dec(o.challenge);
+  o.allowCredentials = (o.allowCredentials||[]).map(c => ({...c, id: dec(c.id)}));
+  const a = await navigator.credentials.get({publicKey: o});
+  const r = await jpost('/login/finish', {
+    id: a.id, rawId: enc(a.rawId), type: a.type,
+    response: { clientDataJSON: enc(a.response.clientDataJSON),
+                authenticatorData: enc(a.response.authenticatorData),
+                signature: enc(a.response.signature) }});
+  if (r.ok) location.reload(); else msg('Login failed: ' + (r.j.detail||r.j.error));
+}
+</script>
