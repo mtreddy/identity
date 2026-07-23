@@ -16,6 +16,18 @@ with a `client_example.py` and a README documenting the threat model.
 
 ## Other candidate mechanisms
 
+- [ ] **XSS attack vs. defense (`22-xss`)** — a `vuln`-vs-`safe` demo in the
+  style of `20-sql-injection`: an endpoint that reflects/stores user input with
+  escaping **off** and **on**, plus a payload that steals a session cookie.
+  Cover the three XSS types (reflected, stored, DOM-based) and the layered
+  defenses: **contextual output encoding** (the primary fix — Jinja
+  autoescaping, and why `| safe` / `Markup` reintroduce risk), a **Content-
+  Security-Policy** (already set in 04's `set_security_headers` — show it
+  blocking inline script), and **`HttpOnly` cookies** (03+, so an XSS can't read
+  the session cookie). Tie it to the repo: mechanism 04 already ships CSP +
+  `HttpOnly`; this makes the threat they defend against concrete. Ship with a
+  `test.py` (payload rendered inert on `/safe`, executable on `/vuln`; CSP
+  header present).
 - [ ] **CSRF attack vs. defense (`21-csrf`)** — a `vuln`-vs-`safe` demo in the
   style of `20-sql-injection`: a state-changing endpoint with CSRF protection
   **off** and **on**, plus an attacker page that auto-submits a cross-site form.
