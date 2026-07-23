@@ -1,0 +1,5 @@
+Flask==3.1.0
+# X.509 certificate authority + cert generation (and TLS glue).
+cryptography==44.0.0
+# JWT access tokens (carrying the certificate-binding `cnf` claim).
+PyJWT==2.10.1

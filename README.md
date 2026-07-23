@@ -83,9 +83,11 @@ authenticates during the **TLS handshake** with an X.509 client certificate. No
 | Directory | Focus |
 |-----------|-------|
 | [`11-mtls`](11-mtls/) | **Mutual TLS:** self-contained CA issues server + per-agent client certs; server requires a client cert (`CERT_REQUIRED`); identity = the verified cert's CN + fingerprint; fingerprint allow-list for revocation |
+| [`12-cert-bound-tokens`](12-cert-bound-tokens/) | **Certificate-bound tokens (RFC 8705):** mTLS (11) + JWT (07) — the token carries `cnf.x5t#S256` (the client cert thumbprint); every call must present the matching cert, so a stolen token can't be replayed |
 
 Unlike a bearer token, the client must hold the **private key**, so a leaked
-request/log can't be replayed. See `11-mtls/README.md` for the mTLS-vs-token
+request/log can't be replayed (11) — and 12 carries that guarantee up into the
+token layer (sender-constrained tokens). See each subfolder's README for the
 trade-offs.
 
 ## Mechanism 09–10 — Delegated access & federated identity (OAuth2 / OIDC)
