@@ -119,7 +119,6 @@ Ties the series together: the user still authenticates with a **bcrypt password*
 | [`18-scim`](18-scim/) | **SCIM 2.0 provisioning:** the lifecycle layer for SSO — a bearer-authed REST API (`/scim/v2`) where an IdP creates, updates, **deactivates**, and deletes Users/Groups (CRUD + PATCH + filter + pagination), keeping the app's directory in sync as people join and leave |
 
 ## Next mechanisms (planned)
-Signup + email verification + password reset · TOTP/2FA · WebAuthn/passkeys ·
-mTLS · SAML.
-Given the sibling `agent-auth-research` work, machine/agent credential flows
-are the current focus.
+See [TODO.md](TODO.md) for the backlog — next up are **OAuth2 Device
+Authorization Grant (RFC 8628)** and **magic-link / email OTP**, plus
+enhancements to existing mechanisms.
