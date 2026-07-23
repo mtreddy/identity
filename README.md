@@ -67,14 +67,14 @@ API. JSON over `Authorization: Bearer` — no browser, cookie, or session.
 | Directory | Focus |
 |-----------|-------|
 | [`06-api-keys`](06-api-keys/) | **API keys:** long-lived, hashed-at-rest, revocable per-key credentials sent on every request; per-client resource isolation |
-| `07-jwt` *(planned)* | **JWT:** exchange an API key at a token endpoint for a short-lived, signed, scoped token the API verifies statelessly (OAuth2 client-credentials) |
+| [`07-jwt`](07-jwt/) | **JWT:** exchange an API key at a token endpoint for a short-lived, signed, scoped token the API verifies statelessly (OAuth2 client-credentials) |
 
 Key idea carried into 06: an API key is 256 bits of randomness, so it's hashed
 with **SHA-256 (fast)**, not bcrypt — slow hashing only helps low-entropy human
 passwords. See `06-api-keys/README.md` for the full threat model.
 
 ## Next mechanisms (planned)
-`07-jwt` (in progress) · signup + email verification + password reset ·
-TOTP/2FA · OAuth2 · WebAuthn/passkeys · mTLS.
+Signup + email verification + password reset · TOTP/2FA · OAuth2 (full
+authorization-code flow) · WebAuthn/passkeys · mTLS.
 Given the sibling `agent-auth-research` work, machine/agent credential flows
 are the current focus.
