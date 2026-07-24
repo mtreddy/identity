@@ -22,19 +22,52 @@ labelled sections.
 
 ## The flow
 
+The **front channel** goes through the user's browser (redirects); the **back
+channel** is a direct server-to-server call the browser never sees. PKCE ties
+them together: the `code_challenge` travels the front channel, the matching
+`code_verifier` only the back channel.
+
+```mermaid
+sequenceDiagram
+    actor U as User + browser
+    participant C as Client app (RP)
+    participant A as Authorization server
+    participant R as Resource server
+
+    U->>C: 1. GET /client/start
+    Note over C: build PKCE verifier + state;<br/>code_challenge = S256(verifier)
+    C-->>U: 2. 302 → /authorize (client_id, redirect_uri,<br/>scope, state, code_challenge, S256)
+    U->>A: 3. GET /authorize  (front channel)
+    U->>A: 4. log in + grant consent
+    A-->>U: 5. 302 → redirect_uri?code=…&state=…
+    U->>C: 6. GET /client/callback?code&state
+    Note over C: check state matches
+    C->>A: 7. POST /token  (code + code_verifier)  — back channel
+    Note over A: verify PKCE:<br/>S256(verifier) == code_challenge
+    A-->>C: 8. access_token
+    C->>R: 9. GET /api/resources (Authorization: Bearer)
+    R-->>C: 10. the user's resources
 ```
- user's browser              auth server                 client app
-      │  1. click "Connect" ─────────────────────────────▶│
-      │◀── 2. redirect to /authorize (client_id, scope, ──┤
-      │        state, code_challenge=S256(verifier)) ◀─────┤
-      │  3. log in + consent ──▶│                          │
-      │◀── 4. redirect to redirect_uri?code=…&state=… ─────│ (browser)
-      │  5. deliver code ────────────────────────────────▶│
-      │                         │◀ 6. POST /token (code +  │
-      │                         │     code_verifier) ──────┤
-      │                         │─ 7. access token ───────▶│
-      │                         │◀ 8. GET /api/... (Bearer)│
-```
+
+> GitHub renders the block above as a diagram; the numbered walkthrough below is
+> the text version.
+
+### Step by step
+1. **`GET /client/start`** — the user starts the "Connect" flow at the client.
+2. The client generates a PKCE **`code_verifier`** (secret) and its hash
+   **`code_challenge = S256(verifier)`**, plus a random **`state`**, and redirects
+   the browser to the auth server's `/authorize` with those.
+3–4. The auth server **authenticates** the user (password login) and asks for
+   **consent** to the requested scopes.
+5. On approval it redirects the browser back to the client's registered
+   **`redirect_uri`** with a one-time **`code`** and the **`state`**.
+6. The browser delivers the code to **`/client/callback`**; the client checks the
+   returned `state` matches the one it sent (CSRF defense on the redirect).
+7. The client calls **`POST /token`** (back channel) with the `code` **and the
+   `code_verifier`**.
+8. The auth server verifies **`S256(code_verifier) == code_challenge`** (PKCE) and
+   returns the **access token**.
+9–10. The client calls the **resource server** with `Authorization: Bearer`.
 
 ## Run it
 
