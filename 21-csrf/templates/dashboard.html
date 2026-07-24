@@ -1,0 +1,35 @@
+<!doctype html>
+<title>Account</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 3rem auto; }
+  .box { border:1px solid #ddd; border-radius:8px; padding:1rem; margin:.75rem 0; }
+  .vuln { border-left:4px solid #b00020; } .safe { border-left:4px solid #0a7d33; }
+  input { padding:.4rem; } button { padding:.45rem .9rem; margin-top:.5rem; }
+  a { color:#0057d8; } .muted { color:#666; font-size:.85rem; }
+  code { background:#f4f4f4; padding:.05rem .3rem; border-radius:3px; }
+</style>
+
+<h1>Account</h1>
+<p>Current email: <strong>{{ email }}</strong></p>
+
+<div class="box vuln">
+  <h3>Change email — UNPROTECTED <code>/vuln</code></h3>
+  <form method="post" action="{{ url_for('vuln_change_email') }}">
+    <input name="email" value="new@example.com">
+    <button type="submit">Change (no CSRF token)</button>
+  </form>
+  <p class="muted">No token — this action can be forged from another site.</p>
+</div>
+
+<div class="box safe">
+  <h3>Change email — PROTECTED <code>/safe</code></h3>
+  <form method="post" action="{{ url_for('safe_change_email') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input name="email" value="new@example.com">
+    <button type="submit">Change (with CSRF token)</button>
+  </form>
+  <p class="muted">Requires the session-bound token a cross-site page can't read.</p>
+</div>
+
+<p><a href="{{ url_for('attacker') }}">Open the attacker page →</a> ·
+   <a href="{{ url_for('logout') }}">Log out</a></p>

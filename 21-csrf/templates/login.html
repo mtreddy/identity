@@ -1,0 +1,11 @@
+<!doctype html>
+<title>CSRF demo</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 28rem; margin: 4rem auto; }
+  .cta { display:inline-block; margin-top:1rem; padding:.6rem 1.2rem; background:#0057d8;
+         color:#fff; border-radius:6px; text-decoration:none; }
+</style>
+<h1>CSRF attack vs. defense</h1>
+<p>Sign in to get a session, then visit the attacker page to see a cross-site
+request try to change your account email.</p>
+<a class="cta" href="{{ url_for('login') }}">Sign in as Alice</a>

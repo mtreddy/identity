@@ -145,6 +145,7 @@ Cross-cutting web-security topics that underpin the mechanisms above.
 | Directory | Focus |
 |-----------|-------|
 | [`20-sql-injection`](20-sql-injection/) | **SQL injection defense:** vulnerable vs. safe queries side by side; real exploits (auth bypass, tautology, UNION exfiltration, ORDER BY injection) that fall on `/vuln/*` and hold on `/safe/*`. Primary fix: **parameterized queries**; plus identifier allow-lists, least privilege, the driver stacked-query caveat |
+| [`21-csrf`](21-csrf/) | **CSRF attack vs. defense:** an attacker page auto-submits a cross-site form; the forged request takes over the account on the unprotected endpoint and is blocked (403) on the token-protected one. Shows the **synchronizer token**, **`SameSite` cookie**, and OAuth **`state`** defenses |
 
 ## Next mechanisms (planned)
 See [TODO.md](TODO.md) for the backlog — next up are **OAuth2 Device

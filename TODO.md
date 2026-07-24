@@ -28,15 +28,9 @@ with a `client_example.py` and a README documenting the threat model.
   `HttpOnly`; this makes the threat they defend against concrete. Ship with a
   `test.py` (payload rendered inert on `/safe`, executable on `/vuln`; CSP
   header present).
-- [ ] **CSRF attack vs. defense (`21-csrf`)** — a `vuln`-vs-`safe` demo in the
-  style of `20-sql-injection`: a state-changing endpoint with CSRF protection
-  **off** and **on**, plus an attacker page that auto-submits a cross-site form.
-  Show all three defenses the repo already uses — **synchronizer token**
-  (Flask-WTF, 04/05/09/10/16/19), **`SameSite` cookie** (03+), and the OAuth
-  **`state`** parameter (09/10/19) — blocking the forged request, with notes on
-  when each applies (token for same-site forms; `state` for the OAuth redirect;
-  `SameSite` as defense-in-depth). Ship with a `test.py` (token-less POST -> 403,
-  cross-site request blocked, legitimate request works).
+- [x] **CSRF attack vs. defense (`21-csrf`)** — done: attacker page auto-submits
+  a cross-site form; account takeover on `/vuln`, 403 on `/safe`; synchronizer
+  token + `SameSite` + OAuth `state` covered; `test.py` passes.
 - [ ] **CORS + browser SPA client (`cors-spa`)** — split the client and API
   onto **different origins** so CORS actually applies: a browser SPA (origin A)
   calling a bearer-token API (origin B). Show correct **preflight (`OPTIONS`)**

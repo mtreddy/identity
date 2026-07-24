@@ -1,0 +1,3 @@
+Flask==3.1.0
+# Synchronizer-token CSRF protection.
+Flask-WTF==1.2.2
