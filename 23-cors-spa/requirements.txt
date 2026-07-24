@@ -1,0 +1,3 @@
+Flask==3.1.0
+# CORS is a set of response headers + preflight handling — implemented by hand
+# here (no flask-cors) so the mechanics are visible.
