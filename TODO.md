@@ -14,6 +14,45 @@ with a `client_example.py` and a README documenting the threat model.
   single-use, short-TTL link or code sent by email; covers token hashing,
   expiry, single-use, and rate-limiting. (Email delivery stubbed to console.)
 
+## Provisioning & bootstrap (cross-cutting)
+
+Today each mechanism's `seed.py` provisions its demo state ad-hoc — hardcoded
+users, hardcoded clients, secrets from env vars, keys/certs generated on first
+run. A real system needs a deliberate story for how the three layers get set up
+before first use, and several of these are standardized mechanisms worth building.
+
+**Users** — the identities that authenticate (needed by 01–05, 16, 17, and the
+delegated flows 09/10/14/19/24):
+- [ ] Self-service **signup + email verification** — the primary user-provisioning
+  path (also listed under candidate mechanisms).
+- [ ] **Admin / invite-based** user creation (create → invite → first-login
+  password or passkey enrollment).
+- [x] **SCIM 2.0** (`18-scim`) — IdP-driven create/update/deactivate/delete.
+- [ ] A short **reference** of which mechanisms need users and how each is seeded.
+
+**Applications / clients** — relying parties, API clients, devices, workloads:
+- [ ] **OAuth2 Dynamic Client Registration (RFC 7591)** + management (RFC 7592)
+  — replace the hardcoded `oauth_clients` rows in 09/10/19/24 with a real
+  registration endpoint (client_id/secret issuance, redirect-uri allow-list mgmt).
+- [ ] **API-key issuance / rotation** surface for 06/07/08/13 (today `seed.py`
+  prints a key once) — an admin endpoint plus rotation/revocation UX.
+- [ ] **Workload cert / SVID enrollment** for 11/12/15 — CA enrollment (CSR →
+  signed cert) and SPIRE-style attestation instead of `seed.py` minting certs.
+- [ ] **SAML metadata exchange** for 14 (SP/IdP metadata + cert rotation).
+- [ ] **SCIM provisioning-token** issuance / rotation for 18.
+
+**Server-side** — the secrets and trust the server itself holds:
+- [ ] **Signing-key provisioning & rotation**: the HS256 `JWT_SECRET`
+  (07/08/09/13/19/24) and the RS256 keypair + JWKS (10/19) — load from a secret
+  manager (Vault/KMS/HSM), support multiple `kid`s for zero-downtime rotation.
+- [ ] **PKI bootstrap**: CA + server cert + trust bundle (11/12/15) — an issuance
+  pipeline, rotation, and (SPIFFE) trust-bundle federation.
+- [ ] **Session `SECRET_KEY`** and DB **schema/migrations** — a consistent
+  `bootstrap` step across mechanisms (vs. per-`seed.py` init on first run).
+- [ ] A cross-cutting **`PROVISIONING.md`** documenting, per mechanism, exactly
+  what must exist before first run (users, clients, secrets, keys, certs) and
+  where each comes from in production.
+
 ## Other candidate mechanisms
 
 - [x] **XSS attack vs. defense (`22-xss`)** — done: reflected + stored + DOM
