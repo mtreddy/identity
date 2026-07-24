@@ -1,0 +1,24 @@
+<!doctype html>
+<title>Approve {{ client["name"] }}</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 26rem; margin: 4rem auto; }
+  .card { border:1px solid #ddd; border-radius:10px; padding:1.5rem; }
+  ul { padding-left:1.1rem; } code { background:#f4f4f4; padding:.05rem .3rem; border-radius:3px; }
+  .row { display:flex; gap:.75rem; margin-top:1.25rem; }
+  button { padding:.55rem 1.1rem; border-radius:6px; border:1px solid #bbb; cursor:pointer; }
+  .approve { background:#0057d8; color:#fff; border-color:#0057d8; }
+  .who { color:#666; font-size:.85rem; }
+</style>
+<div class="card">
+  <h1>Approve <em>{{ client["name"] }}</em>?</h1>
+  <p class="who">Signed in as {{ user["email"] }} · device code <code>{{ user_code }}</code></p>
+  <p><strong>{{ client["name"] }}</strong> is requesting permission to:</p>
+  <ul>{% for name, desc in scopes %}<li>{{ desc }} <code>({{ name }})</code></li>{% endfor %}</ul>
+  <form method="post" action="{{ url_for('device_decision') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="row">
+      <button class="approve" name="decision" value="approve" type="submit">Allow</button>
+      <button name="decision" value="deny" type="submit">Deny</button>
+    </div>
+  </form>
+</div>

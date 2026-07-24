@@ -1,0 +1,16 @@
+<!doctype html>
+<title>Connect a device</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 24rem; margin: 4rem auto; }
+  input { width:100%; padding:.55rem; box-sizing:border-box; font-size:1.2rem;
+          letter-spacing:.15em; text-align:center; text-transform:uppercase; }
+  button { margin-top:1rem; padding:.5rem 1rem; } .error { color:#b00020; }
+</style>
+<h1>Connect a device</h1>
+<p>Enter the code shown on your device.</p>
+<form method="post" action="{{ url_for('device_verify') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input name="user_code" value="{{ user_code }}" placeholder="WDJB-MDLN" autofocus required>
+  <button type="submit">Continue</button>
+</form>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}

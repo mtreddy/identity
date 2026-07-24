@@ -6,11 +6,11 @@ with a `client_example.py` and a README documenting the threat model.
 
 ## Planned new mechanisms
 
-- [ ] **19 — OAuth2 Device Authorization Grant (RFC 8628)** — login for
-  input-constrained devices (CLIs, TVs, IoT): the device shows a `user_code` +
-  verification URL, polls `/token` while the user approves on a phone. Builds on
-  the OAuth2 work (09/10).
-- [ ] **20 — Magic link / email OTP (passwordless)** — sign in via a one-time,
+- [x] **OAuth2 Device Authorization Grant (RFC 8628)** — done as `24-device-grant`:
+  device_authorization + polling `/token` (authorization_pending / slow_down /
+  access_denied / expired_token / one-time device_code) + browser approval;
+  `test.py` passes (11 checks).
+- [ ] **Magic link / email OTP (passwordless)** — sign in via a one-time,
   single-use, short-TTL link or code sent by email; covers token hashing,
   expiry, single-use, and rate-limiting. (Email delivery stubbed to console.)
 

@@ -1,0 +1,13 @@
+<!doctype html>
+<title>{{ 'Approved' if approved else 'Denied' }}</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 24rem; margin: 6rem auto; text-align:center; }
+  .ok { color:#0a7d33; } .no { color:#b00020; }
+</style>
+{% if approved %}
+  <h1 class="ok">✓ Device approved</h1>
+  <p>You can return to your device — it's now signed in.</p>
+{% else %}
+  <h1 class="no">✗ Device denied</h1>
+  <p>The device was not granted access.</p>
+{% endif %}

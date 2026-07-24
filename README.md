@@ -129,6 +129,7 @@ login + consent.
 | [`09-oauth2-auth-code-pkce`](09-oauth2-auth-code-pkce/) | **OAuth2 Authorization Code + PKCE (authorization):** authorization server + resource server + demo client; user login (bcrypt) → consent → one-time code → PKCE token exchange → scoped JWT access token |
 | [`10-openid-connect`](10-openid-connect/) | **OpenID Connect (authentication):** adds the `openid` scope, a signed **`id_token`**, `nonce`, **RS256 + JWKS** (asymmetric signing), discovery, and `/userinfo` — the "who is the user" layer on top of 09 |
 | [`19-sso-mailbox`](19-sso-mailbox/) | **"Sign in with SSO, then read your mailbox":** a concrete authenticate→authorize→access-a-resource demo on OIDC — a third-party app gets `mail:read` consent and reads a mock inbox; the scope is enforced at the resource (a token without `mail:read` gets 403) |
+| [`24-device-grant`](24-device-grant/) | **OAuth2 Device Authorization Grant (RFC 8628):** login for input-constrained devices (TV/CLI/IoT) — the device shows a `user_code` + URL, the user approves in a phone browser, the device polls `/token` through the `authorization_pending` / `slow_down` / `access_denied` / `expired_token` state machine to a token |
 
 Ties the series together: the user still authenticates with a **bcrypt password**
 (mechanism 01), and 10 upgrades token signing from the shared-secret **HS256**
