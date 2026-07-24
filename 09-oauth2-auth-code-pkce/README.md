@@ -35,17 +35,17 @@ sequenceDiagram
     participant R as Resource server
 
     U->>C: 1. GET /client/start
-    Note over C: build PKCE verifier + state;<br/>code_challenge = S256(verifier)
-    C-->>U: 2. 302 → /authorize (client_id, redirect_uri,<br/>scope, state, code_challenge, S256)
-    U->>A: 3. GET /authorize  (front channel)
+    Note over C: build PKCE verifier + state,<br/>code_challenge = S256(verifier)
+    C-->>U: 2. 302 to /authorize (client_id, scope, state, code_challenge)
+    U->>A: 3. GET /authorize (front channel)
     U->>A: 4. log in + grant consent
-    A-->>U: 5. 302 → redirect_uri?code=…&state=…
-    U->>C: 6. GET /client/callback?code&state
+    A-->>U: 5. 302 to redirect_uri with code + state
+    U->>C: 6. GET /client/callback (code + state)
     Note over C: check state matches
-    C->>A: 7. POST /token  (code + code_verifier)  — back channel
-    Note over A: verify PKCE:<br/>S256(verifier) == code_challenge
+    C->>A: 7. POST /token (code + code_verifier) back channel
+    Note over A: verify PKCE<br/>S256(verifier) == code_challenge
     A-->>C: 8. access_token
-    C->>R: 9. GET /api/resources (Authorization: Bearer)
+    C->>R: 9. GET /api/resources (Bearer token)
     R-->>C: 10. the user's resources
 ```
 
