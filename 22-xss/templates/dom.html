@@ -1,0 +1,35 @@
+<!doctype html>
+<title>DOM XSS</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 34rem; margin: 3rem auto; }
+  .box { border:1px solid #ddd; border-radius:8px; padding:1rem; margin:.6rem 0; }
+  .vuln { border-left:4px solid #b00020; } .safe { border-left:4px solid #0a7d33; }
+  code { background:#f4f4f4; padding:.05rem .3rem; border-radius:3px; } a { color:#0057d8; }
+</style>
+
+<h1>DOM-based XSS</h1>
+<p>DOM XSS happens entirely in the browser: JavaScript takes attacker-controlled
+input (here the URL fragment, <code>location.hash</code>) and writes it to a
+dangerous <em>sink</em>. Nothing reaches the server, so server-side escaping and
+even CSP for reflected content don't apply — the fix is choosing a safe sink.</p>
+
+<div class="box vuln">
+  <strong>Vulnerable sink — <code>innerHTML</code></strong>
+  <div id="vuln"></div>
+</div>
+<div class="box safe">
+  <strong>Safe sink — <code>textContent</code></strong>
+  <div id="safe"></div>
+</div>
+
+<p>Reload with a payload in the fragment, e.g.
+<code>/dom#&lt;img src=x onerror=alert(1)&gt;</code></p>
+<p><a href="/">back</a></p>
+
+<script>
+  const raw = decodeURIComponent(location.hash.slice(1));
+  // DANGER: innerHTML parses the string as HTML -> the payload executes.
+  document.getElementById('vuln').innerHTML = raw;
+  // SAFE: textContent inserts it as text -> inert.
+  document.getElementById('safe').textContent = raw;
+</script>

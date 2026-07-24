@@ -1,0 +1,18 @@
+<!doctype html>
+<title>Comments (safe)</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 3rem auto; }
+  li { border:1px solid #eee; border-radius:6px; padding:.4rem .6rem; margin:.3rem 0; }
+  a { color:#0057d8; }
+</style>
+
+<h1>Comments (safe)</h1>
+<ul>
+  {# Jinja auto-escapes {{ c }}, so a stored <script> renders as inert text. #}
+  {% for c in comments %}<li>{{ c }}</li>{% else %}<li>No comments yet.</li>{% endfor %}
+</ul>
+<form method="post">
+  <input name="comment" placeholder="Try a <script> payload">
+  <button type="submit">Post</button>
+</form>
+<p><a href="/">back</a></p>

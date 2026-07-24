@@ -1,0 +1,31 @@
+<!doctype html>
+<title>XSS demo</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 34rem; margin: 3rem auto; }
+  code { background:#f4f4f4; padding:.05rem .3rem; border-radius:3px; }
+  .vuln { color:#b00020; } .safe { color:#0a7d33; } a { color:#0057d8; }
+  li { margin:.3rem 0; }
+</style>
+
+<h1>XSS attack vs. defense</h1>
+<p>Try the same payload against the unprotected and protected endpoints. A good
+payload: <code>&lt;script&gt;alert(document.domain)&lt;/script&gt;</code> or
+<code>&lt;img src=x onerror=alert(1)&gt;</code></p>
+
+<h3>Reflected</h3>
+<ul>
+  <li class="vuln"><a href="/vuln/search?q=%3Cscript%3Ealert(document.domain)%3C/script%3E">/vuln/search</a> — payload runs</li>
+  <li class="safe"><a href="/safe/search?q=%3Cscript%3Ealert(document.domain)%3C/script%3E">/safe/search</a> — payload shown as inert text (+ CSP)</li>
+</ul>
+
+<h3>Stored</h3>
+<ul>
+  <li class="vuln"><a href="/vuln/comments">/vuln/comments</a> — post a comment with a script tag; it runs for every viewer</li>
+  <li class="safe"><a href="/safe/comments">/safe/comments</a> — comments are escaped (+ CSP)</li>
+</ul>
+
+<h3>DOM-based</h3>
+<ul><li><a href="/dom#%3Cimg%20src=x%20onerror=alert(1)%3E">/dom</a> — sink comparison (browser-only)</li></ul>
+
+<p style="color:#666;font-size:.85rem">Your session cookie is <code>HttpOnly</code>,
+so even a working XSS here can't read it via <code>document.cookie</code>.</p>
