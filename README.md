@@ -44,7 +44,7 @@ cd 10-openid-connect && python test.py
 ```
 
 Each `test.py` starts the app, runs its checks, prints PASS/FAIL, and exits
-nonzero on any failure. The shared harness is `testlib.py`. All 20 pass.
+nonzero on any failure. The shared harness is `testlib.py`. All 26 pass.
 
 ### Quick start (any directory)
 
@@ -150,7 +150,30 @@ Cross-cutting web-security topics that underpin the mechanisms above.
 | [`22-xss`](22-xss/) | **XSS attack vs. defense:** reflected + stored + DOM payloads; the same `<script>` reflects raw (would execute) on `/vuln` and is encoded to inert text on `/safe`. Shows **output encoding** (Jinja autoescaping), **Content-Security-Policy**, and **`HttpOnly`** cookies |
 | [`23-cors-spa`](23-cors-spa/) | **CORS + browser SPA:** a real two-origin setup (SPA on one port, API on another); correct **preflight** + origin **allow-list** + credentials vs. the reflect-any-origin **misconfiguration**. Teaches that **CORS relaxes the same-origin policy — it is not a defense** |
 
+## Provisioning & bootstrap
+
+Where the identities and secrets *come from* before first use — the deliberate
+counterpart to the ad-hoc `seed.py` init in every other directory. See
+[PROVISIONING.md](PROVISIONING.md) for the full per-mechanism, per-layer story
+(users, clients, server secrets/keys/certs).
+
+| Directory | Focus |
+|-----------|-------|
+| [`25-signup-verification`](25-signup-verification/) | **Self-service user provisioning:** signup gated by **email verification** — a single-use, short-TTL, hashed token proves control of the address before the account can log in; no account-enumeration oracle. The *Users* front door (builds on `05`) |
+| [`26-dynamic-client-registration`](26-dynamic-client-registration/) | **OAuth2 Dynamic Client Registration (RFC 7591/7592):** clients register themselves at `/register` (gated by an initial access token) and manage themselves with a per-client registration access token; hard **redirect-URI validation** and **scope clamping**. The *Clients* front door (builds on `09`) |
+
+**`bootstrap.py`** — a one-command provisioning step for the *server-held*
+secrets each mechanism reads from the environment (`SECRET_KEY`, `JWT_SECRET`,
+`REGISTRATION_TOKEN`, …), generating strong values into a gitignored
+`<dir>/.dev-secrets.env` instead of you inventing them by hand:
+
+```bash
+python bootstrap.py list          # what each mechanism needs
+python bootstrap.py 26            # provision one (prefix is enough)
+python bootstrap.py --all         # provision every mechanism
+```
+
 ## Next mechanisms (planned)
-See [TODO.md](TODO.md) for the backlog — next up are **OAuth2 Device
-Authorization Grant (RFC 8628)** and **magic-link / email OTP**, plus
-enhancements to existing mechanisms.
+See [TODO.md](TODO.md) for the backlog — next up are **magic-link / email OTP**
+and **admin/invite-based** user provisioning, plus enhancements to existing
+mechanisms.

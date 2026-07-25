@@ -23,17 +23,21 @@ before first use, and several of these are standardized mechanisms worth buildin
 
 **Users** — the identities that authenticate (needed by 01–05, 16, 17, and the
 delegated flows 09/10/14/19/24):
-- [ ] Self-service **signup + email verification** — the primary user-provisioning
-  path (also listed under candidate mechanisms).
+- [x] Self-service **signup + email verification** — done as `25-signup-verification`:
+  single-use, hashed, short-TTL token; verified-email login gate; no signup
+  enumeration oracle; `test.py` passes (9 checks).
 - [ ] **Admin / invite-based** user creation (create → invite → first-login
   password or passkey enrollment).
 - [x] **SCIM 2.0** (`18-scim`) — IdP-driven create/update/deactivate/delete.
-- [ ] A short **reference** of which mechanisms need users and how each is seeded.
+- [x] A short **reference** of which mechanisms need users and how each is seeded
+  — done in `PROVISIONING.md` (Layer 1 table).
 
 **Applications / clients** — relying parties, API clients, devices, workloads:
-- [ ] **OAuth2 Dynamic Client Registration (RFC 7591)** + management (RFC 7592)
-  — replace the hardcoded `oauth_clients` rows in 09/10/19/24 with a real
-  registration endpoint (client_id/secret issuance, redirect-uri allow-list mgmt).
+- [x] **OAuth2 Dynamic Client Registration (RFC 7591)** + management (RFC 7592)
+  — done as `26-dynamic-client-registration`: initial-access-token gate,
+  per-client registration access token (RFC 7592 read/update/delete),
+  redirect-URI validation, scope clamping, confidential-client secret auth;
+  `test.py` passes (15 checks).
 - [ ] **API-key issuance / rotation** surface for 06/07/08/13 (today `seed.py`
   prints a key once) — an admin endpoint plus rotation/revocation UX.
 - [ ] **Workload cert / SVID enrollment** for 11/12/15 — CA enrollment (CSR →
@@ -47,9 +51,12 @@ delegated flows 09/10/14/19/24):
   manager (Vault/KMS/HSM), support multiple `kid`s for zero-downtime rotation.
 - [ ] **PKI bootstrap**: CA + server cert + trust bundle (11/12/15) — an issuance
   pipeline, rotation, and (SPIFFE) trust-bundle federation.
-- [ ] **Session `SECRET_KEY`** and DB **schema/migrations** — a consistent
-  `bootstrap` step across mechanisms (vs. per-`seed.py` init on first run).
-- [ ] A cross-cutting **`PROVISIONING.md`** documenting, per mechanism, exactly
+- [x] **Session `SECRET_KEY`** and server-held signing secrets — a consistent
+  `bootstrap` step across mechanisms, done as root `bootstrap.py` (provisions
+  `SECRET_KEY`/`JWT_SECRET`/`REGISTRATION_TOKEN`/`API_TOKEN` into a gitignored
+  `<dir>/.dev-secrets.env`, idempotent). DB **schema/migrations** remain per
+  `seed.py` `init_schema()` for now.
+- [x] A cross-cutting **`PROVISIONING.md`** documenting, per mechanism, exactly
   what must exist before first run (users, clients, secrets, keys, certs) and
   where each comes from in production.
 
@@ -70,8 +77,8 @@ delegated flows 09/10/14/19/24):
   auth at the token endpoint (vs. a client secret).
 - [ ] **Account recovery** — password reset + TOTP/passkey recovery (backup
   codes), the flow attackers target most.
-- [ ] **Signup + email verification** — self-service registration with a
-  verified-email gate.
+- [x] **Signup + email verification** — done as `25-signup-verification`
+  (self-service registration with a verified-email gate).
 - [ ] **Risk-based / step-up auth** — require a stronger factor for sensitive
   actions (re-auth, WebAuthn UV).
 

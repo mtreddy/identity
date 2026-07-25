@@ -20,3 +20,9 @@ certs/
 # SPIFFE SVIDs + trust bundle (generated locally)
 svids/
 app.db
+# Dynamically-registered demo client id (26); stubbed email outbox (25)
+demo_client.json
+outbox.log
+# Local dev secrets provisioned by bootstrap.py (never commit)
+.dev-secrets.env
+.dev-secrets/
