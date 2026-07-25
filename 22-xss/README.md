@@ -83,3 +83,36 @@ rather than regex; tighten CSP (nonces/hashes instead of `'self'` for inline);
 set `X-Content-Type-Options: nosniff` (done on `/safe`); and remember XSS
 defeats CSRF tokens (an in-page script can read them) — so fixing XSS also
 protects `21-csrf`.
+
+**Cross-Site Scripting (XSS)** is a vulnerability where a web application takes untrusted, attacker-controlled input and renders it directly into a web page as executable HTML or JavaScript.
+
+When a victim views the compromised page, the attacker's malicious script runs within their browser. Because the script runs in the context of the user's active session, the attacker can hijack their session, read sensitive page data, perform actions on their behalf, or steal their cookies.
+
+Based on the [22-xss repository module](https://github.com/mtreddy/identity/tree/main/22-xss) you are viewing, here are the mechanics of the three primary types of XSS and how they are mitigated:
+
+### The Three Types of XSS
+
+1. **Reflected XSS:** The malicious payload is part of the user's request (like a URL parameter) and the server echoes it straight back in the HTTP response.
+* *Example:* An attacker sends a victim a link to `[example.com/search?q=](https://example.com/search?q=)<script>stealCookies()</script>`. The server blindly inserts the `q` parameter into the page HTML, executing the script.
+
+
+2. **Stored XSS:** The most dangerous variant. The attacker's payload is permanently saved to the target server's database (like a forum post, user profile, or comment section).
+* *Example:* An attacker submits a comment containing a `<script>` payload. Every subsequent user who views that comment section will unknowingly execute the payload.
+
+
+3. **DOM-based XSS:** This happens entirely within the browser on the client side, never touching the server. It occurs when a page's legitimate JavaScript takes data from an attacker-controllable source (like the URL hash) and passes it to a dangerous "sink" that executes it.
+* *Example:* JavaScript dynamically setting `element.innerHTML = userInput`.
+
+
+
+### The Layered Defenses
+
+Defending against XSS requires a defense-in-depth strategy, as a single failure can lead to full compromise.
+
+* **Contextual Output Encoding (Primary Defense):** Before untrusted data is rendered into an HTML document, it must be escaped so the browser interprets it purely as text, not as executable code. For example, `<script>` becomes `&lt;script&gt;`.
+* *Note:* The encoding must match the context. Escaping for an HTML body is different from escaping data inside a JavaScript variable, a CSS block, or an HTML attribute. Modern templating engines (like Jinja, React, or Angular) often do this automatically unless explicitly disabled (e.g., using `dangerouslySetInnerHTML`).
+
+
+* **Content-Security-Policy (CSP):** A secondary layer of defense enforced by the browser. By sending a `Content-Security-Policy` HTTP header, developers can strictly define which domains the browser is allowed to load scripts from, and explicitly forbid the execution of inline scripts (`<script>...</script>`). If an XSS payload slips through the encoding defense, a strong CSP will block it from running.
+* **Safe DOM Sinks:** To prevent DOM-based XSS, front-end code must avoid dangerous sinks like `innerHTML` and instead use safe alternatives like `textContent`, which inherently treats the input as text.
+* **HttpOnly Cookies:** While this doesn't stop XSS from executing, setting the `HttpOnly` flag on sensitive session cookies prevents JavaScript from accessing them via `document.cookie`. This limits the attacker's ability to easily steal the victim's session token and exfiltrate it.

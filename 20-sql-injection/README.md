@@ -91,3 +91,49 @@ do, and parameterize.
 Every mechanism's `db.py` already follows the safe pattern — parameterized
 queries throughout (called out as "done well" back in `01-login-password`). This
 directory is the explicit, attackable demonstration of the rule they all follow.
+
+**SQL Injection (SQLi)** is a critical vulnerability that occurs when an application takes untrusted data (like user input from a web form or API request) and dynamically inserts it directly into a database query. Instead of treating the input as plain data, the database engine is tricked into interpreting it as executable SQL commands.
+
+When conducting software security audits, this is often one of the first vulnerabilities to look for, especially in backend codebases where raw queries are constructed.
+
+Based on the [20-sql-injection](https://github.com/mtreddy/identity/blob/main/20-sql-injection/README.md) repository module you are viewing, here is an elaboration on the mechanics, common attack vectors, and how to defend against them.
+
+### The Core Flaw: Mixing Code and Data
+
+The vulnerability stems entirely from string concatenation or interpolation. If a backend (like a Python application using SQLite) builds a query like this:
+
+```python
+# DANGER: The input is formatted directly into the string
+username = request.form['username']
+query = f"SELECT * FROM users WHERE username = '{username}'"
+
+```
+
+If an attacker supplies `admin' --` as their username, the query becomes:
+`SELECT * FROM users WHERE username = 'admin' --'`
+
+The database sees the quote `'`, which closes the string, and then sees `--`, which is the SQL comment indicator. Everything after that is ignored, effectively stripping away password checks and logging the attacker in as the administrator.
+
+### Common Attack Vectors
+
+The repository outlines four classic ways attackers exploit this behavior:
+
+1. **Authentication Bypass:** (The `admin' --` example above). By prematurely closing the input string and commenting out the rest of the query, the attacker forces the system to evaluate only the first part of the `WHERE` clause.
+2. **Tautology:** An attacker inputs `x' OR '1'='1' --`. The query becomes `WHERE username = 'x' OR '1'='1'`. Because 1 always equals 1, the condition evaluates to true for every row in the table, often returning the first user record (typically the admin).
+3. **UNION Exfiltration:** If the injection point is in a search feature (like looking up products), an attacker can append a `UNION SELECT` statement. For example: `none' UNION SELECT username, secret_note FROM users --`. This forces the database to combine the legitimate search results with a completely different query, leaking sensitive data (like user secrets) out through the application's UI.
+4. **Identifier Injection (ORDER BY):** Sometimes inputs aren't values, but structural parts of the query, like a column name for sorting (`ORDER BY {user_input}`). This is particularly dangerous because column names cannot be parameterized.
+
+*(Note: While some attackers try "stacked queries" like `; DROP TABLE users;`, Python's `sqlite3` `execute()` method inherently blocks multiple statements. However, as the documentation notes, this is a specific driver quirk, not a reliable security boundary, as other databases and connectors will happily execute the dropped table command).*
+
+### Defense in Depth
+
+When architecting or reviewing a system for security, mitigating SQLi requires strict adherence to data separation:
+
+* **The Golden Rule — Parameterized Queries:** You must use bound parameters provided by the database driver.
+* **Safe Python Example:** `conn.execute("SELECT * FROM users WHERE username = ?", (username,))`
+* By passing the query structure and the data separately, the database driver ensures the input is treated strictly as a literal value, not as executable syntax. If an attacker passes `admin' --`, the database searches for a user whose literal name is exactly `admin' --`.
+
+
+* **Allow-listing for Identifiers:** Because you cannot parameterize structural identifiers like table names or `ORDER BY` columns, you must validate the input against a strict allow-list. If the application expects to sort by `name` or `price`, any other input should be immediately rejected with a 400 Bad Request.
+* **Least-Privilege DB Accounts:** The database user credential utilized by the application should only have the minimum permissions necessary to function. It should not have `DROP` privileges, cross-schema read access, or file-writing capabilities, limiting the "blast radius" if an injection flaw is discovered.
+* **Careful ORM Usage:** Object-Relational Mappers (ORMs) handle parameterization automatically for most queries. However, raw SQL escape hatches (like `.raw()` or `text()`) reintroduce the risk and must be heavily scrutinized during code reviews.
