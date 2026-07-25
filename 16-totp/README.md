@@ -67,6 +67,7 @@ Encrypt the TOTP secret at rest; one-time **backup/recovery codes**; reject
 reuse of a code within its 30s step (store the last accepted step);
 account-lockout + alerting on repeated failures; WebAuthn/passkeys as a
 phishing-resistant step up from TOTP.
+
 **Time-Based One-Time Password (TOTP)** is a two-factor authentication (2FA) mechanism that adds a layer of security beyond a standard password. It works by requiring the user to prove they possess a specific device (like a smartphone with an authenticator app) that holds a shared secret.
 
 Based on the [repository documentation](https://github.com/mtreddy/identity/blob/main/16-totp/README.md) you are viewing, here is a breakdown of how it works under the hood:
