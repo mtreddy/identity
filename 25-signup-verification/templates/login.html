@@ -1,0 +1,46 @@
+<!doctype html>
+<title>Login</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 22rem; margin: 4rem auto; }
+  label { display: block; margin: 0.75rem 0 0.25rem; }
+  input { width: 100%; padding: 0.5rem; box-sizing: border-box; }
+  button { margin-top: 1rem; padding: 0.5rem 1rem; }
+  .error { color: #b00020; margin-top: 1rem; }
+  .hint { color: #666; font-size: 0.85rem; margin-top: 2rem; }
+  a { color: #0057d8; }
+  form.inline { display: inline; margin: 0; }
+  form.inline button { margin: 0; padding: 0; border: none; background: none;
+    color: #0057d8; cursor: pointer; font: inherit; text-decoration: underline; }
+</style>
+
+<h1>Sign in</h1>
+
+<form method="post" action="{{ url_for('login') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <label for="email">Email</label>
+  <input id="email" name="email" type="email" autofocus required>
+
+  <label for="password">Password</label>
+  <input id="password" name="password" type="password" required>
+
+  <button type="submit">Log in</button>
+</form>
+
+{% if error %}
+  <p class="error">
+    {{ error }}
+    {% if unverified_email %}
+      &mdash;
+      <form class="inline" method="post" action="{{ url_for('resend') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="email" value="{{ unverified_email }}">
+        <button type="submit">resend the link</button>
+      </form>.
+    {% endif %}
+  </p>
+{% endif %}
+
+<p class="hint">
+  No account yet? <a href="{{ url_for('signup') }}">Create one</a>.
+</p>

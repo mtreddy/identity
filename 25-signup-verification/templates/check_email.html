@@ -1,0 +1,27 @@
+<!doctype html>
+<title>Check your email</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 26rem; margin: 5rem auto; }
+  .box { border: 1px solid #ddd; border-radius: 8px; padding: 1.25rem; }
+  code { background: #f2f2f2; padding: 0.1rem 0.3rem; border-radius: 4px; }
+  .hint { color: #666; font-size: 0.85rem; margin-top: 1.5rem; }
+  a { color: #0057d8; }
+</style>
+
+<div class="box">
+  <h1>{% if resent %}Link sent{% else %}Check your email{% endif %}</h1>
+  <p>
+    If <code>{{ email }}</code> can have an account, we've sent a confirmation
+    link to it. Open the link to activate the account, then sign in.
+  </p>
+  <p class="hint">
+    The response here is deliberately the same whether or not the address is
+    already registered &mdash; so this page can't be used to discover who has an
+    account.
+  </p>
+</div>
+
+<p class="hint">
+  In this demo the email is written to <code>outbox.log</code> and the server
+  log instead of being delivered. <a href="{{ url_for('login') }}">Back to sign in</a>
+</p>
