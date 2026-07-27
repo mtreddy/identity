@@ -82,6 +82,25 @@ delegated flows 09/10/14/19/24):
 - [ ] **Risk-based / step-up auth** — require a stronger factor for sensitive
   actions (re-auth, WebAuthn UV).
 
+### API-security series (REST → GraphQL → gRPC)
+
+The authorization bugs that authentication doesn't fix, one directory per API
+style (each `/vuln` vs `/safe`, OWASP API Security Top 10):
+
+- [x] **REST API authorization** — done as `27-rest-api-authz`: BOLA/IDOR,
+  BFLA, mass assignment, excessive data exposure (API1/3/5/6) with bearer-authed
+  callers; object-, function-, and field-level checks + a response allow-list;
+  `test.py` passes (14 checks).
+- [ ] **GraphQL security (`28-graphql-security`)** — introspection left on vs
+  disabled; query **depth/complexity/alias-batching** DoS vs cost limits;
+  **field-level authorization** enforced in resolvers (the GraphQL form of
+  BOLA), not just at the query root.
+- [ ] **gRPC security (`29-grpc-security`)** — per-RPC authorization via
+  **interceptors**, token-in-**metadata** propagation, **server reflection**
+  exposure (the introspection analog), and message-size limits; builds channel
+  auth on `11-mtls`. NOTE: departs from the Flask+SQLite convention
+  (`grpcio`/`protobuf`, a `.proto`) — a deliberate, documented exception.
+
 ## Enhancements to existing mechanisms
 
 - [ ] **16-totp** — one-time **backup/recovery codes**; reject reuse of a code

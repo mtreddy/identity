@@ -44,7 +44,7 @@ cd 10-openid-connect && python test.py
 ```
 
 Each `test.py` starts the app, runs its checks, prints PASS/FAIL, and exits
-nonzero on any failure. The shared harness is `testlib.py`. All 26 pass.
+nonzero on any failure. The shared harness is `testlib.py`. All 27 pass.
 
 ### Quick start (any directory)
 
@@ -149,6 +149,7 @@ Cross-cutting web-security topics that underpin the mechanisms above.
 | [`21-csrf`](21-csrf/) | **CSRF attack vs. defense:** an attacker page auto-submits a cross-site form; the forged request takes over the account on the unprotected endpoint and is blocked (403) on the token-protected one. Shows the **synchronizer token**, **`SameSite` cookie**, and OAuth **`state`** defenses |
 | [`22-xss`](22-xss/) | **XSS attack vs. defense:** reflected + stored + DOM payloads; the same `<script>` reflects raw (would execute) on `/vuln` and is encoded to inert text on `/safe`. Shows **output encoding** (Jinja autoescaping), **Content-Security-Policy**, and **`HttpOnly`** cookies |
 | [`23-cors-spa`](23-cors-spa/) | **CORS + browser SPA:** a real two-origin setup (SPA on one port, API on another); correct **preflight** + origin **allow-list** + credentials vs. the reflect-any-origin **misconfiguration**. Teaches that **CORS relaxes the same-origin policy — it is not a defense** |
+| [`27-rest-api-authz`](27-rest-api-authz/) | **REST API authorization:** the bugs authentication doesn't fix — **BOLA/IDOR**, **BFLA**, **mass assignment**, and **excessive data exposure** (OWASP API1/3/5/6) as `/vuln` vs `/safe` pairs. Every request is authenticated; the fix is object-, function-, and field-level checks at the endpoint + a response allow-list |
 
 ## Provisioning & bootstrap
 

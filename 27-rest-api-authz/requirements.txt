@@ -1,0 +1,5 @@
+Flask==3.1.0
+# Passwords are bcrypt-hashed (house rule). Bearer tokens are high-entropy and
+# SHA-256-hashed at rest via the standard library (hashlib/secrets), so bcrypt
+# is the only third-party add beyond Flask.
+bcrypt==4.2.1
