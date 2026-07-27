@@ -67,35 +67,3 @@ Encrypt the TOTP secret at rest; one-time **backup/recovery codes**; reject
 reuse of a code within its 30s step (store the last accepted step);
 account-lockout + alerting on repeated failures; WebAuthn/passkeys as a
 phishing-resistant step up from TOTP.
-
-**Time-Based One-Time Password (TOTP)** is a two-factor authentication (2FA) mechanism that adds a layer of security beyond a standard password. It works by requiring the user to prove they possess a specific device (like a smartphone with an authenticator app) that holds a shared secret.
-
-Based on the [repository documentation](https://github.com/mtreddy/identity/blob/main/16-totp/README.md) you are viewing, here is a breakdown of how it works under the hood:
-
-### 1. The Shared Secret (Enrollment)
-
-For TOTP to work, both the server and the user's authenticator app must hold the exact same **Base32 secret key**.
-
-* During setup, the server generates this secret and shares it with the user, typically via a QR code (which encodes an `otpauth://` URI).
-* **Crucial detail:** No codes are actually transmitted over the network after this initial enrollment.
-
-### 2. Independent Calculation
-
-Once both sides have the secret, they can independently generate the exact same 6-digit code without communicating with each other. They do this by combining the **shared secret** with the **current time**.
-
-TOTP (defined in RFC 6238) is essentially an HMAC-based One-Time Password (HOTP) where the counter is replaced by the current time. The formula looks like this:
-
-$\text{code} = \text{HOTP}(\text{secret}, \lfloor \frac{\text{unixtime}}{30} \rfloor)$
-
-* **Time Steps:** The UNIX time is divided by 30, meaning the resulting code changes exactly every 30 seconds.
-* **Algorithm:** It typically uses SHA-1 to hash the secret and the time-step together, truncating the result into a user-friendly 6-digit number.
-
-### 3. The Verification Flow
-
-When a user attempts to log in:
-
-1. **Factor 1:** The user enters their password. If correct, the server puts their session in a *pending* state.
-2. **Factor 2:** The user opens their app, reads the current 6-digit code, and submits it.
-3. **Validation:** The server calculates what the code *should* be at that exact moment using the shared secret it has on file.
-4. **Clock Skew:** Because device clocks might not be perfectly synchronized, servers usually accept codes from the current 30-second step, plus or minus one step ($\pm1$).
-5. **Security:** The server uses a constant-time comparison (like `hmac.compare_digest`) to check the submitted code against the expected code, which prevents attackers from guessing the code via timing attacks. If they match, the login is successful.

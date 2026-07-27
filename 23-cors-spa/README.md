@@ -86,37 +86,3 @@ grants for an allow-listed origin; the actual response echoes the origin (not
 `*`) with `Vary: Origin`; a **disallowed** origin gets **no** `Allow-Origin`
 (so the browser blocks it); the `/vuln` endpoint reflects an attacker origin with
 credentials; and a no-`Origin` (non-browser) request works without CORS headers.
-
-
-Based on the [23-cors-spa module](https://github.com/mtreddy/identity/tree/main/23-cors-spa) you are viewing, here are the key insights into how Cross-Origin Resource Sharing (CORS) works and where developers commonly make critical security mistakes.
-
-### 1. The Core Concept: CORS is a Relaxation, Not a Defense
-
-The most crucial takeaway from this module is that **CORS does not protect your server from receiving requests**. Instead, it is a mechanism that tells a web browser to *relax* its strict Same-Origin Policy.
-
-If an attacker on `evil.example` makes a cross-origin request to your API, your server will still execute the request. CORS simply dictates whether the browser is allowed to hand the *response* back to the attacker's JavaScript.
-
-### 2. How the Mechanics Work Under the Hood
-
-When a Single Page Application (SPA) on one port (e.g., `5001`) tries to talk to an API on another port (`5000`), the browser intervenes:
-
-1. **The Preflight (OPTIONS):** Because the request includes sensitive headers (like an `Authorization` bearer token), the browser sends an `OPTIONS` request first to ask for permission.
-2. **The API's Answer:** A correctly configured API will check its allow-list. If the origin is approved, it responds with `Access-Control-Allow-Origin: <that origin>` and `Access-Control-Allow-Credentials: true`.
-3. **Browser Decision:** The browser compares the API's allowed origin against the SPA's actual origin. If they match, the actual request is sent, and the response is exposed to the SPA. If they don't match, the browser blocks the response.
-
-### 3. The Misconfiguration Vulnerability (`/vuln/data`)
-
-The repository demonstrates a very common and dangerous misconfiguration: **dynamically reflecting the request's `Origin` back to the browser while allowing credentials.**
-
-If a developer gets lazy and configures their server to say, *"Whatever origin asked for this, allow it, and allow credentials,"* they create a massive vulnerability. If a logged-in user visits an attacker's site, the attacker's script can make a request to the API. Because the server reflects the attacker's origin in the allow list, the browser happily hands over the user's authenticated, sensitive data to the attacker.
-
-### 4. Golden Rules for CORS Hygiene
-
-To avoid these pitfalls, the module outlines strict rules of thumb:
-
-* **Strict Allow-Lists:** Explicitly define the exact origins allowed to access the API. Never blindly echo the `Origin` header from the incoming request.
-* **No Wildcards with Credentials:** The browser actively rejects configurations that combine `Access-Control-Allow-Origin: *` with credentials. If you need credentials, you must specify exact origins.
-* **Always Use `Vary: Origin`:** This ensures that shared network caches don't accidentally serve the CORS headers meant for one origin to a completely different one.
-* **CORS $\neq$ Authorization:** Even with perfectly locked-down CORS, you still must authenticate every incoming request (e.g., verifying the bearer token) and ensure the user is authorized to perform the action.
-
-
