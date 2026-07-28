@@ -63,6 +63,37 @@ Test accounts (from `seed.py`):
 `alice@example.com` / `correct-horse-battery-staple` ·
 `bob@example.com` / `hunter2`
 
+## Provisioning — what must exist before first run
+
+This is the first step that can't just be `python app.py`'d: fix #1 makes a real
+secret a **hard prerequisite** (the server raises and exits if `SECRET_KEY` is
+unset). Three things have to be provisioned first, one per layer in the
+repo-wide [PROVISIONING.md](../PROVISIONING.md):
+
+| What | Layer | Why it's needed | Demo source | Production source |
+|------|-------|-----------------|-------------|-------------------|
+| **`SECRET_KEY`** | server secret | signs the session cookie; app **refuses to boot** without it (fix #1) | `bootstrap.py` or a hand-exported `token_hex(32)` | secret manager (Vault/KMS), one per deployment, rotated |
+| **Users + `identity.db`** | users | something to authenticate as | `seed.py` creates the DB, `alice`/`bob`, and their resources | self-service [`25-signup-verification`](../25-signup-verification/) or admin/invite |
+| **TLS cert + key** | server material | encrypts the login transport (fix #3) — *optional* for a local smoke test | `USE_ADHOC_TLS=1` (throwaway self-signed) | real cert in `TLS_CERT`/`TLS_KEY` (mkcert / ACME / internal CA), rotated |
+
+`SECRET_KEY` is *server-held* material: provision it, never hard-code or commit
+it — that hard-coding is exactly the threat fix #1 removes. The repo tool writes
+a strong value into a gitignored `.dev-secrets.env` (mode `0600`) so you don't
+invent one by hand:
+
+```bash
+python ../bootstrap.py 02        # writes SECRET_KEY → 02-secrets-transport/.dev-secrets.env
+source .dev-secrets.env          # load it into the shell
+python seed.py                   # create identity.db + sample users
+python app.py                    # boots (add USE_ADHOC_TLS=1 for HTTPS)
+```
+
+The DB schema and sample users stay with `seed.py` (that's this step's Layer-1
+provisioning); only the server secret moves to `bootstrap.py`, because *issuance*
+of the other material is itself the lesson in later mechanisms. See
+[PROVISIONING.md](../PROVISIONING.md) for how every mechanism's prerequisites map
+to a production source.
+
 ## Still open (addressed in later steps)
 Cookie flags, brute-force protection, timing enumeration (→ 03-auth-robustness);
 CSRF, bcrypt 72-byte truncation, security headers (→ 04-web-hardening);
