@@ -82,6 +82,23 @@ delegated flows 09/10/14/19/24):
 - [ ] **Risk-based / step-up auth** — require a stronger factor for sensitive
   actions (re-auth, WebAuthn UV).
 
+### Agent ↔ model authentication series
+
+Design record: [AGENT_MODEL_AUTH.md](AGENT_MODEL_AUTH.md). An AI agent calling a
+remote/local model, with mutual trust.
+
+- [x] **Agent → model over OAuth** — done as `30-agent-model-oauth`: model
+  gateway as an OAuth 2.1 Resource Server; agent auth via **`private_key_jwt`**
+  (RFC 7523) + `client_secret`; **audience-bound** (RFC 8707/9728) + **scoped**
+  tokens + per-client model allow-list; `jti` assertion replay protection;
+  `/vuln` static-key foil. `test.py` passes (17 checks).
+- [ ] **`31-agent-model-dpop`** — sender-constrained (DPoP) model token so a
+  *stolen* token can't be replayed; builds on `13`.
+- [ ] **`32-agent-obo`** — on-behalf-of delegation (RFC 8693 token exchange):
+  `sub`=user, `act`=agent, downscoped; agent can't exceed the user's authority.
+- [ ] **`33-model-provenance`** — signed model manifest (id/version/digest) +
+  optional TEE attestation the agent verifies; local-vs-remote parity.
+
 ### API-security series (REST → GraphQL → gRPC)
 
 The authorization bugs that authentication doesn't fix, one directory per API

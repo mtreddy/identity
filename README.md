@@ -44,7 +44,7 @@ cd 10-openid-connect && python test.py
 ```
 
 Each `test.py` starts the app, runs its checks, prints PASS/FAIL, and exits
-nonzero on any failure. The shared harness is `testlib.py`. All 27 pass.
+nonzero on any failure. The shared harness is `testlib.py`. All 28 pass.
 
 ### Quick start (any directory)
 
@@ -138,6 +138,16 @@ Ties the series together: the user still authenticates with a **bcrypt password*
 
 | [`14-saml`](14-saml/) | **SAML 2.0 Web Browser SSO:** the enterprise sibling of OIDC — IdP + SP + demo; a signed XML **assertion** (XML-DSig, `signxml`) carries identity, verified against the IdP cert with audience/`InResponseTo`/conditions/replay checks |
 | [`18-scim`](18-scim/) | **SCIM 2.0 provisioning:** the lifecycle layer for SSO — a bearer-authed REST API (`/scim/v2`) where an IdP creates, updates, **deactivates**, and deletes Users/Groups (CRUD + PATCH + filter + pagination), keeping the app's directory in sync as people join and leave |
+
+## Agent ↔ model authentication
+
+How an **AI agent calls a remote (or local) model/tool** securely — token-mediated
+access with the model endpoint as an OAuth 2.1 Resource Server, and the agent
+verifying the endpoint in return. Design record: [AGENT_MODEL_AUTH.md](AGENT_MODEL_AUTH.md).
+
+| Directory | Focus |
+|-----------|-------|
+| [`30-agent-model-oauth`](30-agent-model-oauth/) | **Agent → model over OAuth:** the model gateway is a Resource Server; the agent authenticates with **`private_key_jwt`** (RFC 7523) or `client_secret` and gets a **short-lived, audience-bound (RFC 8707/9728), scoped** token; the gateway enforces `aud` + scope + a per-client model allow-list. `/vuln` shows the static-API-key anti-pattern it replaces |
 
 ## Application security foundations
 
