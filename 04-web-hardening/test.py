@@ -32,6 +32,22 @@ def main():
                         headers={"Cookie": cookie}, allow_redirects=False)
     T.check("login with CSRF token + cookie succeeds (302)", st == 302, f"status={st}")
 
+    # Feature 7 (token format): the signed token is payload.timestamp.signature
+    parts = tok.split(".")
+    T.check("CSRF token is 3 dot-separated parts", len(parts) == 3 and all(parts),
+            f"token={tok!r}")
+
+    # Feature 7 (tamper negative): corrupt the signature -> rejected like a
+    # missing token. Proves it's the HMAC signature, not mere presence, that
+    # protects the token. Flip the last char of the signature section.
+    bad_sig = parts[-1][:-1] + ("A" if parts[-1][-1] != "A" else "B")
+    tampered = ".".join(parts[:-1] + [bad_sig])
+    st, _, _ = T.http("POST", base + "/login",
+                      data={"csrf_token": tampered, "email": EMAIL, "password": PW},
+                      headers={"Cookie": cookie}, allow_redirects=False)
+    T.check("login with tampered CSRF signature rejected (400)", st == 400,
+            f"status={st}")
+
     # Feature 9: security headers
     _, hdr, _ = T.http("GET", base + "/login")
     T.check("X-Frame-Options: DENY", hdr.get("X-Frame-Options") == "DENY")

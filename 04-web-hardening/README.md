@@ -23,6 +23,35 @@ behalf. Flask-WTF's `CSRFProtect` requires every POST to include a secret,
 session-bound token rendered by `{{ csrf_token() }}`. A cross-site page can't
 read that token, so forged POSTs are rejected with HTTP 400.
 
+#### What the token actually is
+
+Flask-WTF keeps **two** related values (see `flask_wtf/csrf.py`):
+
+1. **Raw token** — stored server-side in the signed session cookie as
+   `session["csrf_token"]`, generated once per session as
+   `hashlib.sha1(os.urandom(64)).hexdigest()` → a **40-char hex** nonce. Never
+   rendered raw into the page.
+2. **Signed token** — what `{{ csrf_token() }}` emits into the hidden form
+   field. The raw nonce is run through
+   `URLSafeTimedSerializer(SECRET_KEY, salt="wtf-csrf-token")`, giving three
+   URL-safe-base64 sections joined by dots:
+
+   ```
+   payload . timestamp . signature
+   Ijc0MWQ4…MWQi . am0C7g . hrpF1y6C…1Fc
+   ```
+
+   - **payload** — base64 of the raw hex nonce
+   - **timestamp** — issue time; drives the default **3600 s** expiry
+     (`WTF_CSRF_TIME_LIMIT`)
+   - **signature** — HMAC over `payload.timestamp`, keyed by `SECRET_KEY` + salt
+
+Validation both checks the signature/age *and* compares the unwrapped payload
+against `session["csrf_token"]` (constant-time). A cross-site page can neither
+read the victim's session nonce nor forge the HMAC, so its POST fails — which
+is why tampering with the signature is rejected exactly like a missing token
+(both are asserted in `test.py`).
+
 ### 8. bcrypt 72-byte truncation
 **Threat: silent password collisions / weaker-than-expected hashing.** bcrypt
 ignores everything past the first 72 bytes of input. Two long passwords sharing
