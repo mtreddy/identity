@@ -56,6 +56,76 @@ Log in as Alice and you'll see Alice's resources; Bob only sees Bob's.
 4. **Protection** — `/dashboard` uses the `@login_required` decorator: no valid
    session → redirect to `/login`.
 
+## Flow — how the communication starts and finishes
+
+Communication **starts** with a plain-HTTP `GET /login` — there is no TLS, so
+the password below travels in cleartext (⚠️). The **signed session cookie** is
+the thread that carries identity across requests, but it's signed with a
+hard-coded `SECRET_KEY` anyone reading the source can forge (⚠️). It **finishes**
+when `session.clear()` empties that cookie at logout. The ⚠️ points are exactly
+what `../02-secrets-transport` turns into 🔒 — `diff -ru 01-login-password
+02-secrets-transport` and compare the two Flow sections.
+
+```
+  ┌──────────┐            ┌─────────────────────┐          ┌───────────┐
+  │ Operator │            │  Flask app (app.py) │          │ identity  │
+  │  / shell │            │   127.0.0.1:5000    │          │  .db      │
+  └────┬─────┘            └──────────┬──────────┘          └─────┬─────┘
+       │                             │                           │
+  ═════╪═════ BOOT ══════════════════╪═══════════════════════════╪═══════
+       │                             │                           │
+       │ python seed.py ────────────────── create users ───────► │ bcrypt
+       │                             │                           │ hashes
+       │ python app.py ─────────────►│                           │
+       │                             │ secret_key hard-coded  ⚠️ │
+       │                             │ debug=True             ⚠️ │
+       │        listening on HTTP    │ (plain HTTP, no TLS)   ⚠️ │
+
+  ┌──────────┐                       │
+  │ Browser  │                       │
+  └────┬─────┘                       │
+       │                             │
+  ═════╪═════ START: LOGIN (cleartext) ══════════════════════════════════
+       │                             │
+       │  GET /login ───────────────►│   ← no TLS handshake; everything
+       │◄──────── 200 login.html ────│     below is readable on the wire ⚠️
+       │                             │
+       │  POST /login                │
+       │  email + password (cleartext)►│
+       │                             │  get_user_by_email(email) ──► │
+       │                             │◄───────────── user row ────────│
+       │                             │  verify_password()
+       │                             │  bcrypt.checkpw (constant-time)
+       │                             │
+       │                             │  ✔ match: session.clear();
+       │                             │    session["user_id"]=…;
+       │                             │    cookie signed w/ hard-coded key⚠️
+       │  302 → /dashboard           │
+       │◄─ Set-Cookie: session=…sig ─│
+       │                             │  ✘ no match → "Invalid email or
+       │                             │    password." (re-render form)
+
+  ═════════ AUTHENTICATED REQUEST ══════════════════════════════════════
+       │                             │
+       │  GET /dashboard             │
+       │  Cookie: session=…sig ─────►│
+       │                             │  verify cookie signature
+       │                             │  (key is guessable → forgeable) ⚠️
+       │                             │  login_required → redirect if none
+       │                             │  get_resources_for_user() ──► │
+       │                             │◄──────────── resources ────────│
+       │◄──────── 200 dashboard.html │
+
+  ═════════ FINISH: LOGOUT ═════════════════════════════════════════════
+       │                             │
+       │  GET /logout ──────────────►│
+       │                             │  session.clear()
+       │◄─ 302 → /login; Set-Cookie: session= (empty)
+       │                             │
+       ▼                             ▼
+   session over                 cookie invalidated
+```
+
 ## What is intentionally NOT production-grade (yet)
 
 These are the natural next steps in the series:

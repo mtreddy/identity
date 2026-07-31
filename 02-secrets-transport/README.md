@@ -40,6 +40,82 @@ steal the session cookie. Fix: serve over HTTPS so the login is encrypted.
 Real certs go in `TLS_CERT`/`TLS_KEY`; `USE_ADHOC_TLS=1` gives a self-signed
 cert for local testing.
 
+## Flow — how the communication starts and finishes
+
+Communication **starts** with a TLS handshake (fix #3), so the password never
+travels in cleartext. The **signed session cookie** (fix #1) is the thread that
+carries identity across requests — unforgeable without `SECRET_KEY`. It
+**finishes** when `session.clear()` empties that cookie at logout.
+
+```
+  ┌──────────┐            ┌─────────────────────┐          ┌───────────┐
+  │ Operator │            │  Flask app (app.py) │          │ identity  │
+  │  / shell │            │   127.0.0.1:5000    │          │  .db      │
+  └────┬─────┘            └──────────┬──────────┘          └─────┬─────┘
+       │                             │                           │
+  ═════╪═════ BOOT / PROVISIONING ═══╪═══════════════════════════╪═══════
+       │                             │                           │
+       │ export SECRET_KEY=…    🔒#1 │                           │
+       │ python seed.py ────────────────── create users ───────► │ bcrypt
+       │                             │                           │ hashes
+       │ python app.py ─────────────►│                           │
+       │                             │ read SECRET_KEY from env  │
+       │                             │ (no key → refuse to boot) │
+       │                             │ debug=False by default🔒#2│
+       │                             │ ssl_context set        🔒#3
+       │        listening on HTTPS   │                           │
+
+  ┌──────────┐                       │
+  │ Browser  │                       │
+  └────┬─────┘                       │
+       │                             │
+  ═════╪═════ START: TLS + LOGIN ════╪═══════════════════════════════════
+       │                             │
+       │  TLS handshake         🔒#3 │   ← encrypts everything below, so
+       │◄═══════════════════════════►│     password + cookie can't be
+       │  (cert from TLS_CERT/KEY    │     read on the wire (MITM)
+       │   or USE_ADHOC_TLS)         │
+       │                             │
+       │  GET /login ───────────────►│
+       │◄──────── 200 login.html ────│
+       │                             │
+       │  POST /login                │
+       │  email + password (in TLS) ►│
+       │                             │  get_user_by_email(email) ──► │
+       │                             │◄───────────── user row ────────│
+       │                             │  verify_password()
+       │                             │  bcrypt.checkpw (constant-time)
+       │                             │
+       │                             │  ✔ match: session.clear();
+       │                             │    session["user_id"]=…;
+       │                             │    cookie SIGNED w/ SECRET_KEY🔒#1
+       │  302 → /dashboard           │
+       │◄─ Set-Cookie: session=…sig ─│
+       │                             │  ✘ no match → "Invalid email or
+       │                             │    password." (re-render form)
+
+  ═════════ AUTHENTICATED REQUEST ══════════════════════════════════════
+       │                             │
+       │  GET /dashboard             │
+       │  Cookie: session=…sig ─────►│
+       │                             │  verify cookie signature
+       │                             │  with SECRET_KEY          🔒#1
+       │                             │  (forged/tampered → rejected;
+       │                             │   login_required → redirect)
+       │                             │  get_resources_for_user() ──► │
+       │                             │◄──────────── resources ────────│
+       │◄──────── 200 dashboard.html │
+
+  ═════════ FINISH: LOGOUT ═════════════════════════════════════════════
+       │                             │
+       │  GET /logout ──────────────►│
+       │                             │  session.clear()
+       │◄─ 302 → /login; Set-Cookie: session= (empty)
+       │                             │
+       ▼                             ▼
+   session over                 cookie invalidated
+```
+
 ## Run it
 
 ```bash
