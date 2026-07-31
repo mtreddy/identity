@@ -71,8 +71,9 @@ delegated flows 09/10/14/19/24):
 - [x] **CORS + browser SPA client (`23-cors-spa`)** — done: two-origin setup
   (SPA + API on different ports); preflight, origin allow-list, credentials, and
   the reflect-any-origin misconfiguration; `test.py` passes (12 checks).
-- [ ] **OAuth2 Token Exchange (RFC 8693)** — delegation / impersonation between
-  services (act-as / on-behalf-of).
+- [x] **OAuth2 Token Exchange (RFC 8693)** — delegation / impersonation between
+  services (act-as / on-behalf-of); demonstrated in `32-agent-obo` (agent acting
+  on-behalf-of a user, `sub`/`act`, downscoping, `may_act`).
 - [ ] **`private_key_jwt` client authentication (RFC 7523)** — asymmetric client
   auth at the token endpoint (vs. a client secret).
 - [ ] **Account recovery** — password reset + TOTP/passkey recovery (backup
@@ -96,8 +97,12 @@ remote/local model, with mutual trust.
   the 30 token bound to the agent's DPoP key (`cnf.jkt`), fresh proof per call
   (htm/htu/jti/ath), stolen-token-inert on `/v1` vs replayable on the `/vuln`
   bearer foil; reuses `13`'s `dpop.py`. `test.py` passes (18 checks).
-- [ ] **`32-agent-obo`** — on-behalf-of delegation (RFC 8693 token exchange):
-  `sub`=user, `act`=agent, downscoped; agent can't exceed the user's authority.
+- [x] **`32-agent-obo`** — done: on-behalf-of delegation (RFC 8693 token
+  exchange). Agent exchanges the user's subject token for a **downscoped** access
+  token (`sub`=user, `act`=agent, authority = user ∩ agent); `may_act` pins the
+  delegatee; `/v1` requires the OBO token, `/vuln` is the confused-deputy foil
+  (agent's own token reaches a model the user may not use). `test.py` passes
+  (18 checks). Also fills the **RFC 8693 token exchange** gap noted below.
 - [ ] **`33-model-provenance`** — signed model manifest (id/version/digest) +
   optional TEE attestation the agent verifies; local-vs-remote parity.
 

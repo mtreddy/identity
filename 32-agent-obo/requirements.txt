@@ -1,0 +1,7 @@
+Flask==3.1.0
+# RS256 access + user (subject) tokens and JWKS, RFC 7523 private_key_jwt client
+# assertions, RFC 8693 token exchange (same tokens, no new dep), and ES256 DPoP
+# proofs (RFC 9449) — all via PyJWT + cryptography.
+PyJWT==2.10.1
+cryptography==44.0.0
+# (client_secret hashing uses the standard library: hashlib, secrets.)

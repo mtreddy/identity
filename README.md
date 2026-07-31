@@ -149,6 +149,7 @@ verifying the endpoint in return. Design record: [AGENT_MODEL_AUTH.md](AGENT_MOD
 |-----------|-------|
 | [`30-agent-model-oauth`](30-agent-model-oauth/) | **Agent → model over OAuth:** the model gateway is a Resource Server; the agent authenticates with **`private_key_jwt`** (RFC 7523) or `client_secret` and gets a **short-lived, audience-bound (RFC 8707/9728), scoped** token; the gateway enforces `aud` + scope + a per-client model allow-list. `/vuln` shows the static-API-key anti-pattern it replaces |
 | [`31-agent-model-dpop`](31-agent-model-dpop/) | **Sender-constrained model token (DPoP, RFC 9449):** 30's token, made unstealable — bound to the agent's key via `cnf.jkt`, with a fresh DPoP proof on every call. A **stolen token is inert** on `/v1` but replays on the `/vuln` bearer path. Builds on `13-dpop` |
+| [`32-agent-obo`](32-agent-obo/) | **Agent → model on-behalf-of a user (token exchange, RFC 8693):** the agent exchanges the user's token for a **downscoped** access token (`sub`=user, `act`=agent) whose authority is the *user ∩ agent* intersection — it **can never exceed the user it serves**. `/v1` requires the OBO token; `/vuln` shows the confused deputy where the agent's own token reaches a model the user may not use |
 
 ## Application security foundations
 
