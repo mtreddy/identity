@@ -42,6 +42,82 @@ Every response now sets:
 - `Referrer-Policy: no-referrer` — don't leak URLs to other sites.
 - `Strict-Transport-Security` — once on HTTPS, force HTTPS thereafter.
 
+## Flow — how the communication starts and finishes
+
+Same login lifecycle as `../02-secrets-transport`, now with three more defenses
+woven in. Communication **starts** with `GET /login`, which mints a
+session-bound **CSRF token** into the form (fix #7). The `POST` back must carry
+that token or it's rejected with **400** before any password check — and the
+password is SHA-256 pre-hashed so bcrypt sees every byte (fix #8). **Every**
+response, start to finish, is stamped with security headers (fix #9). It
+**finishes** when `session.clear()` empties the cookie at logout.
+
+```
+  ┌──────────┐            ┌─────────────────────┐          ┌───────────┐
+  │ Browser  │            │  Flask app (app.py) │          │ identity  │
+  │          │            │   127.0.0.1:5000    │          │  .db      │
+  └────┬─────┘            └──────────┬──────────┘          └─────┬─────┘
+       │                             │                           │
+  ═════╪═════ START: GET LOGIN FORM ═╪═══════════════════════════════════
+       │                             │
+       │  GET /login ───────────────►│
+       │                             │  render login.html with a
+       │                             │  session-bound {{ csrf_token() }} 🔒#7
+       │◄─ 200 form + hidden token ──│
+       │  (every response carries      X-Frame-Options, nosniff,
+       │   security headers        🔒#9 CSP, Referrer-Policy, HSTS)
+       │                             │
+  ═════╪═════ POST CREDENTIALS ══════╪═══════════════════════════════════
+       │                             │
+       │  POST /login                │
+       │  email + password + csrf_token►│
+       │                             │  CSRFProtect: token valid &      🔒#7
+       │                             │  session-bound?
+       │                             │   ✘ missing/forged → 400 (CSRFError)
+       │                             │      cross-site page can't read the
+       │                             │      token, so login CSRF fails here
+       │                             │   ✔ token ok ↓
+       │                             │  rate limit 10/IP + 5/account?  🔒(#5)
+       │                             │   ✘ over limit → 429
+       │                             │   ✔ ↓
+       │                             │  get_user_by_email(email) ──► │
+       │                             │◄──────────── user row / None ──│
+       │                             │  verify_password():
+       │                             │  SHA-256→base64 pre-hash,then   🔒#8
+       │                             │  bcrypt.checkpw (full pw counts;
+       │                             │  real+dummy cost the same 🔒#6 timing)
+       │                             │
+       │                             │  ✔ match: session.clear();
+       │                             │    session["user_id"]=…; signed
+       │                             │    HttpOnly+Secure+SameSite cookie 🔒(#1,#4)
+       │  302 → /dashboard           │
+       │◄─ Set-Cookie: session=…sig ─│  (+ security headers 🔒#9)
+       │                             │  ✘ no match → "Invalid email or
+       │                             │    password." (generic, re-render)
+
+  ═════════ AUTHENTICATED REQUEST ══════════════════════════════════════
+       │                             │
+       │  GET /dashboard             │
+       │  Cookie: session=…sig ─────►│
+       │                             │  login_required: valid session?
+       │                             │  get_resources_for_user() ──► │
+       │                             │◄──────────── resources ────────│
+       │◄─ 200 dashboard.html ───────│  (+ security headers 🔒#9)
+
+  ═════════ FINISH: LOGOUT ═════════════════════════════════════════════
+       │                             │
+       │  GET /logout ──────────────►│
+       │                             │  session.clear()
+       │◄─ 302 → /login; Set-Cookie: session= (empty)
+       │                             │
+       ▼                             ▼
+   session over                 cookie invalidated
+```
+
+🔒#7/#8/#9 are this step's new fixes; 🔒(#1,#4,#5,#6) in parentheses are the
+defenses carried forward from 02–03 that also act on this path. `diff -ru
+../03-auth-robustness ./` and compare the Flow sections to see #7–#9 appear.
+
 ## Run it
 
 ```bash
