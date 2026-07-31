@@ -48,6 +48,74 @@ a SIEM/alerting pipeline.
 stack traces, file paths, and versions. With `debug=False` plus explicit
 `404`/`500` handlers, users get a clean page and the details stay in the logs.
 
+## Flow — how the communication starts and finishes
+
+The big change from `../04-web-hardening` is *where the session lives*. The
+cookie now holds only an **opaque session id** (fix #10); the real session data
+sits **server-side** in `.flask_session`, and each user row carries a
+`session_epoch`. `login_required` re-checks that epoch against the DB on **every**
+request — so bumping it (on password change) instantly logs out every *other*
+device. Below, Device A changes its password and Device B's next request dies.
+Every auth event is logged (#12), never the password; errors render clean pages
+(#13).
+
+```
+ ┌─────────┐ ┌─────────┐   ┌──────────────────┐  ┌──────────┐ ┌────────┐ ┌────────┐
+ │Browser A│ │Browser B│   │ Flask app (app.py)│  │.flask_   │ │identity│ │auth.log│
+ │(device) │ │(device) │   │  127.0.0.1:5000   │  │ session  │ │  .db   │ │        │
+ └────┬────┘ └────┬────┘   └─────────┬─────────┘  └────┬─────┘ └───┬────┘ └───┬────┘
+      │           │                  │                 │           │          │
+ ═════╪═══════════╪═ START: LOGIN (both devices) ══════╪═══════════╪══════════╪═════
+      │           │                  │                 │           │          │
+      │ POST /login (email+pw+csrf) ►│                 │           │          │
+      │           │                  │ verify_password (bcrypt) ──────────►   │
+      │           │                  │◄──── user row + session_epoch ─────    │
+      │           │                  │ store session DATA ────────►│          │
+      │           │                  │ session["epoch"]=epoch  🔒#10          │
+      │           │                  │ log "login success" ─────────────────► │ #12
+      │◄─ 302 + Set-Cookie: session=<opaque id> (HttpOnly/Secure/SameSite) 🔒#10│
+      │           │ (B logs in the same way; both share session_epoch = N)   │
+      │           │                  │                 │           │          │
+
+ ═════╪═ AUTHENTICATED REQUEST: epoch re-checked every time ═══════════════════════
+      │           │                  │                 │           │          │
+      │ GET /dashboard (opaque id)  ►│ load session ◄──│           │          │
+      │           │                  │ login_required: session.epoch == DB.epoch?
+      │           │                  │   get_user_by_id ─────────────────►    │
+      │           │                  │   N == N ✔ → serve                     │
+      │◄─ 200 dashboard.html ────────│  (+ security headers)                  │
+
+ ═════╪═ FIX #10 IN ACTION: change password → "log out everywhere" ════════════════
+      │           │                  │                 │           │          │
+      │ POST /change-password       ►│                 │           │          │
+      │ (current+new+csrf)           │ verify current pw ────────────────►    │
+      │           │                  │ policy.validate_password(new)   🔒#11  │
+      │           │                  │  (≥12 chars, not breached/common)      │
+      │           │                  │  ✘ weak → error, no change             │
+      │           │                  │  ✔ update_password: epoch N→N+1 ──►    │ (DB)
+      │           │                  │ session["epoch"]=N+1 (A stays valid)   │
+      │           │                  │ log "password changed" ──────────────► │ #12
+      │◄─ "all other sessions logged out" ─────────────────────────────────── │
+      │           │                  │                 │           │          │
+      │           │ GET /dashboard (opaque id, epoch=N) ►│         │          │
+      │           │                  │ login_required: N == N+1 ? ✘  🔒#10    │
+      │           │                  │ session.clear() → redirect             │
+      │           │◄─ 302 /login ────│  (B is logged out everywhere)          │
+
+ ═════╪═ ERRORS & FINISH ════════════════════════════════════════════════════════
+      │           │                  │                 │           │          │
+      │ bad/expired CSRF, 429, 404, 500 → clean template, details to log 🔒#13 │
+      │ GET /logout ────────────────►│ session.clear() (+ drop server data) ─►│
+      │◄─ 302 /login; Set-Cookie: session= (empty) ──────────────────────────  │
+      ▼           ▼                  ▼                 ▼           ▼          ▼
+  session over  logged out       (opaque id now       server-side session dropped
+                everywhere        maps to nothing)
+```
+
+🔒#10–#13 are this step's fixes; carried-forward defenses (TLS, cookie flags,
+CSRF, rate limit, bcrypt pre-hash, headers) still apply on every arrow. `diff
+-ru ../04-web-hardening ./` and compare the Flow sections.
+
 ## Run it
 
 ```bash
