@@ -21,7 +21,12 @@ def main():
                         data={"email": EMAIL, "password": PW}, allow_redirects=False)
     cookie = hdr.get("Set-Cookie", "")
     T.check("login works", st == 302)
-    T.check("cookie HttpOnly + SameSite", "HttpOnly" in cookie and "SameSite" in cookie, cookie)
+    # HttpOnly keeps JavaScript from reading the session cookie via
+    # document.cookie, so an XSS bug can't exfiltrate it (session hijacking).
+    T.check("session cookie is HttpOnly (blocks XSS cookie theft)",
+            "HttpOnly" in cookie, cookie)
+    T.check("session cookie is SameSite (blunts CSRF)",
+            "SameSite" in cookie, cookie)
 
     # Feature 5: per-account rate limit trips (5/min) -> 429 within a few tries
     statuses = []
