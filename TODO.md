@@ -92,8 +92,10 @@ remote/local model, with mutual trust.
   (RFC 7523) + `client_secret`; **audience-bound** (RFC 8707/9728) + **scoped**
   tokens + per-client model allow-list; `jti` assertion replay protection;
   `/vuln` static-key foil. `test.py` passes (17 checks).
-- [ ] **`31-agent-model-dpop`** — sender-constrained (DPoP) model token so a
-  *stolen* token can't be replayed; builds on `13`.
+- [x] **Sender-constrained model token (DPoP)** — done as `31-agent-model-dpop`:
+  the 30 token bound to the agent's DPoP key (`cnf.jkt`), fresh proof per call
+  (htm/htu/jti/ath), stolen-token-inert on `/v1` vs replayable on the `/vuln`
+  bearer foil; reuses `13`'s `dpop.py`. `test.py` passes (18 checks).
 - [ ] **`32-agent-obo`** — on-behalf-of delegation (RFC 8693 token exchange):
   `sub`=user, `act`=agent, downscoped; agent can't exceed the user's authority.
 - [ ] **`33-model-provenance`** — signed model manifest (id/version/digest) +

@@ -44,7 +44,7 @@ cd 10-openid-connect && python test.py
 ```
 
 Each `test.py` starts the app, runs its checks, prints PASS/FAIL, and exits
-nonzero on any failure. The shared harness is `testlib.py`. All 28 pass.
+nonzero on any failure. The shared harness is `testlib.py`. All 29 pass.
 
 ### Quick start (any directory)
 
@@ -148,6 +148,7 @@ verifying the endpoint in return. Design record: [AGENT_MODEL_AUTH.md](AGENT_MOD
 | Directory | Focus |
 |-----------|-------|
 | [`30-agent-model-oauth`](30-agent-model-oauth/) | **Agent → model over OAuth:** the model gateway is a Resource Server; the agent authenticates with **`private_key_jwt`** (RFC 7523) or `client_secret` and gets a **short-lived, audience-bound (RFC 8707/9728), scoped** token; the gateway enforces `aud` + scope + a per-client model allow-list. `/vuln` shows the static-API-key anti-pattern it replaces |
+| [`31-agent-model-dpop`](31-agent-model-dpop/) | **Sender-constrained model token (DPoP, RFC 9449):** 30's token, made unstealable — bound to the agent's key via `cnf.jkt`, with a fresh DPoP proof on every call. A **stolen token is inert** on `/v1` but replays on the `/vuln` bearer path. Builds on `13-dpop` |
 
 ## Application security foundations
 

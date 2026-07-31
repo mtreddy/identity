@@ -198,7 +198,7 @@ provenance/attestation** — none of which exist in the repo yet.
 | # | Dir | Teaches | Vuln foil |
 |---|-----|---------|-----------|
 | 30 ✅ | `agent-model-oauth` | **built** — model gateway as RS; agent auth via **`private_key_jwt`** (and `client_credentials`); **audience + scope** + per-client model allow-list; resource-id **endpoint pin** via PRM (crypto server identity deferred to 31/33) | `/vuln` static API key: no `aud`, no scope, no expiry, no endpoint check |
-| 31 | `agent-model-dpop` | **sender-constrained** access token (DPoP) — leaked token can't be replayed | replay a bearer token from another client |
+| 31 ✅ | `agent-model-dpop` | **built** — **sender-constrained** access token (DPoP): bound to the agent's key (`cnf.jkt`), fresh proof per call; a stolen token is inert | `/vuln` bearer path: the same token replays with no proof |
 | 32 | `agent-obo` | **on-behalf-of** delegation (RFC 8693) — `sub`=user, `act`=agent, downscoped | agent uses its own broad token for a user action |
 | 33 | `model-provenance` | **signed model manifest** (+ optional TEE **attestation**) the agent verifies; local-vs-remote parity | `/vuln` unsigned/ swapped model accepted blindly |
 
