@@ -57,6 +57,64 @@ python client_example.py
   verifies the signature via the bundle **JWKS** (by `kid`) and requires
   `aud` == the server's own SPIFFE ID, then applies the same policy.
 
+## Flow — how the communication starts and finishes
+
+Both parties are **workloads**, and identity is a **SPIFFE ID** carried in a
+verifiable **SVID**, checked against a **trust bundle** (CA PEM + JWKS) that a
+SPIRE-server stand-in (`trust.py`) issues at seed time. Two forms travel two
+paths: an **X.509-SVID** proves identity in the mTLS handshake (ID in the URI
+SAN, *not* the CN/hostname); a **JWT-SVID** proves it in a bearer header where
+mTLS isn't end-to-end. Authorization is always a **SPIFFE-ID policy**, never
+"any valid cert."
+
+```
+ ┌──────────┐         ┌──────────────────────┐        ┌─────────────────────┐
+ │ trust.py │         │ Client workload      │        │ Server workload      │
+ │ (SPIRE   │         │ (client_example.py)  │        │ (app.py)             │
+ │  stand-in)         └──────────┬───────────┘        └──────────┬───────────┘
+ └────┬─────┘                    │                               │
+ ═════╪═ PROVISION: mint SVIDs + publish the trust bundle ══════════════════
+      │ seed.py → svids/:        │                               │
+      │  X.509-SVID + key per workload (URI SAN=spiffe://…/…)     │
+      │  trust bundle = CA PEM + JWKS ──────► both sides load it  │
+      │                          │                               │
+ ═════╪═ PATH A — X.509-SVID over mTLS ══════════════════════════════════════
+      │                          │ mTLS handshake                │
+      │                          │ ◄─ server X.509-SVID ─────────│
+      │                          │ verify chain vs bundle CA;    │
+      │                          │ check server SPIFFE ID (not   │
+      │                          │ hostname — no DNS SAN)        │
+      │                          │ ─ client X.509-SVID ─────────►│ verify chain
+      │                          │                               │ vs bundle CA;
+      │                          │                               │ read URI SAN →
+      │                          │                               │ SPIFFE ID;
+      │                          │                               │ trust-domain ok?
+      │                          │ GET /… (mTLS) ───────────────►│ SPIFFE-ID
+      │                          │                               │ allow-list?
+      │                          │◄──── 200 (authorized) ────────│  ✔
+      │                          │  rogue/foreign-CA SVID → chain fails or
+      │                          │  SPIFFE-ID not in policy → rejected
+
+ ═════╪═ PATH B — JWT-SVID (bearer, no end-to-end mTLS) ══════════════════════
+      │                          │ Authorization: Bearer <jwt-svid>
+      │                          │   (sub=client SPIFFE ID, aud=server SPIFFE ID)
+      │                          │ ─────────────────────────────►│ verify sig via
+      │                          │                               │ bundle JWKS(kid);
+      │                          │                               │ aud==server
+      │                          │                               │ SPIFFE ID?
+      │                          │                               │ SPIFFE-ID policy?
+      │                          │◄──── 200 (authorized) ────────│  ✔
+      │                          │  aud=another service → replay rejected
+      ▼                          ▼                               ▼
+ short-TTL SVIDs           identity = CA-signed URI SAN,   "finish": SVID
+ (rotate often)            authorized by SPIFFE-ID policy   expires → re-mint
+```
+
+Difference from `../11-mtls` (mTLS-by-CN): the identity is a **SPIFFE ID in the
+URI SAN**, verified against a **trust bundle** and authorized by a **SPIFFE-ID
+policy** — so a valid-but-wrong workload, a rogue CA, or a foreign trust domain
+is rejected even when the TLS chain would otherwise look fine.
+
 ## Threats addressed
 | Threat | Defense |
 |--------|---------|

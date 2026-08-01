@@ -68,6 +68,61 @@ curl -s --cacert $D/ca.crt --cert $D/analytics-agent.crt --key $D/analytics-agen
    revoking it (mechanism 11's fingerprint allow-list) also kills every token
    bound to it — checked as defense in depth.
 
+## Flow — how the communication starts and finishes
+
+This fuses `../11-mtls` and `../07-jwt`: **every** connection is mTLS (as in 11),
+but now the client first swaps its cert-authenticated session for a JWT that is
+**bound to that cert**. The token carries `cnf.x5t#S256` = the SHA-256 thumbprint
+of the client's certificate. On each resource call the server recomputes the
+thumbprint of the cert on *this* connection and requires it to equal the token's
+`cnf` — so a stolen token is inert without the matching private key.
+
+```
+ ┌─────────┐                    ┌──────────────────────┐          ┌────────┐
+ │ Client  │                    │ mTLS API (app.py)    │          │identity│
+ │ +cert+key                    │  127.0.0.1:5000      │          │  .db   │
+ └────┬────┘                    └──────────┬───────────┘          └───┬────┘
+      │                                    │                          │
+ ═════╪═ ISSUE: mTLS → cert-bound JWT ═════════════════════════════════════
+      │ mTLS handshake (client cert verified vs CA) ◄══════════════►│
+      │ POST /v1/token  (NO header — authed by the cert) ─────────► │
+      │                                    │ read peer cert; fp check ►│ active?
+      │                                    │ x5t#S256 = base64url(
+      │                                    │   SHA-256(cert DER))
+      │                                    │ issue_token(): JWT with
+      │                                    │   cnf={"x5t#S256": <fp>}, scope, exp
+      │◄─ 200 {access_token: eyJ…(cnf=fpA), token_type:"Bearer"} ──│
+
+ ═════╪═ USE: token + SAME cert (proof of possession) ═══════════════════════
+      │ mTLS handshake (cert A again) ◄════════════════════════════►│
+      │ GET /v1/resources                  │                        │
+      │ Authorization: Bearer eyJ…(cnf=fpA) ─────────────────────► │
+      │                                    │ verify JWT sig + exp    │
+      │                                    │ thumbprint(THIS conn's cert)
+      │                                    │   == token cnf.x5t#S256 ?
+      │                                    │   ✔ match (fpA==fpA) ↓  │
+      │                                    │ (fp still registered/not revoked?)►│
+      │◄─ 200 {resources:[…]} ─────────────│                        │
+
+ ═════╪═ ATTACK: stolen token replayed from another client ════════════════
+      │ (attacker holds eyJ…(cnf=fpA) but only cert B + its key)    │
+      │ mTLS handshake (cert B) ◄══════════════════════════════════►│
+      │ GET /v1/resources  Bearer eyJ…(cnf=fpA) ─────────────────► │
+      │                                    │ thumbprint(cert B)=fpB  │
+      │                                    │   fpB ≠ cnf fpA →        │
+      │◄─ 401 (token not bound to this cert)│  proof-of-possession fails
+      │                                    │                          │
+      ▼                                    ▼                          ▼
+  useless without cert A's       "finish": token expires (exp), OR revoke the
+  private key                     cert → every token bound to it dies too
+```
+
+The takeaway over plain bearer tokens (07/08): presenting the token is **not
+enough** — the caller must *also* prove possession of the private key behind the
+bound cert on the very same connection. A token exported from a log, proxy, or
+SSRF is dead on arrival from any other client. DPoP (`../13-dpop`) achieves the
+same proof-of-possession without needing mTLS end-to-end.
+
 ## Why this matters
 
 | | Plain bearer token (07/08) | Certificate-bound token (here) |

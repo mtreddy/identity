@@ -53,6 +53,61 @@ API_KEY=sk_live_... python client_example.py
 The proof key is validated against itself (the `jwk` in its header) — which is
 safe because we then require that key to be the one the token was *issued* to.
 
+## Flow — how the communication starts and finishes
+
+Same sender-constrained goal as `../12-cert-bound-tokens`, but with **no mTLS and
+no certificates**. The client owns an EC keypair and signs a fresh **DPoP proof**
+(a tiny JWT in the `DPoP:` header) on *every* request. The access token is bound
+to that key via `cnf.jkt` (the RFC 7638 thumbprint of the public JWK). The server
+requires `cnf.jkt == thumbprint(proof.jwk)` — so the token is useless to anyone
+who can't sign a matching proof.
+
+```
+ ┌─────────┐                    ┌──────────────────────┐          ┌────────┐
+ │ Client  │                    │  Flask API (app.py)  │          │identity│
+ │ +EC key │                    │   127.0.0.1:5000     │          │  .db   │
+ └────┬────┘                    └──────────┬───────────┘          └───┬────┘
+      │  (deploy behind TLS; DPoP stops export/replay, not eavesdropping)
+ ═════╪═ ISSUE: API key + DPoP proof → key-bound token ══════════════════════
+      │ POST /v1/token                     │                          │
+      │ X-API-Key: sk_live_…               │                          │
+      │ DPoP: proof{htm:POST, htu:/v1/token, jti, iat, jwk:PUB} ────► │
+      │                                    │ authenticate(api key) ──►│
+      │                                    │ verify proof: sig via jwk,
+      │                                    │  htm/htu match, iat fresh,
+      │                                    │  jti unseen
+      │                                    │ jkt = thumbprint(jwk)     │
+      │                                    │ issue_token(): cnf={"jkt":jktA}
+      │◄─ 200 {access_token: eyJ…(cnf=jktA), token_type:"DPoP"} ─────│
+
+ ═════╪═ USE: token + a FRESH proof per call ═════════════════════════════════
+      │ GET /v1/resources                  │                          │
+      │ Authorization: DPoP eyJ…(cnf=jktA) │                          │
+      │ DPoP: proof{htm:GET, htu:/v1/resources, jti', iat',           │
+      │            ath:hash(access_token), jwk:PUB} ───────────────► │
+      │                                    │ verify token (sig+exp)   │
+      │                                    │ verify proof: sig, htm/htu,
+      │                                    │  iat fresh, jti' unseen,  │
+      │                                    │  ath == hash(token)       │
+      │                                    │ REQUIRE cnf.jkt==thumbprint(jwk)?
+      │                                    │  ✔ jktA==jktA ↓          │
+      │◄─ 200 {resources:[…]} ─────────────│                          │
+
+ ═════╪═ ATTACKS (all → 401) ══════════════════════════════════════════════
+      │ stolen token + attacker's OWN key → proof jkt=jktB ≠ cnf jktA → 401
+      │ replayed proof (same jti already seen)               → 401
+      │ proof aimed at a different URL (htu mismatch)         → 401
+      │ token with no proof at all                           → 401
+      ▼                                    ▼                          ▼
+  can't forge a proof for       "finish": token expires (exp); no logout —
+  a key it doesn't hold          each request re-proves possession afresh
+```
+
+Versus 12: the binding is to a **key the client generated**, not a CA-issued
+cert, so there's no PKI and it works even over plain HTTP\* — the trade is a
+signed proof JWT on every single request instead of a TLS handshake carrying the
+cert. \*Still run TLS in production to protect the token/proofs on the wire.
+
 ## Threats addressed
 - **Token theft / replay:** a leaked access token is useless — the attacker
   can't produce a proof signed by the bound key (they lack the private key), and

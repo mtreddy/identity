@@ -64,6 +64,55 @@ Two layers of trust: *CA-signed* (handshake) **and** *registered &
 not-revoked fingerprint* (DB). A cert we didn't issue for that client, or one
 we've revoked, is rejected even though it chains to the CA.
 
+## Flow — how the communication starts and finishes
+
+The defining difference from 06–08: there is **no `Authorization` header**.
+Identity is established during the **TLS handshake** — if the client can't
+present a CA-signed certificate, the connection is refused and the request never
+reaches Flask. The app then reads the *already-verified* peer cert off the
+socket and maps its fingerprint to a client. The exchange **finishes** when the
+connection closes; there is nothing to log out or expire.
+
+```
+ ┌─────────┐                     ┌─────────────────────┐          ┌────────┐
+ │ Client  │                     │ mTLS server (app.py)│          │identity│
+ │ +cert+key                     │   127.0.0.1:5000    │          │  .db   │
+ └────┬────┘                     └──────────┬──────────┘          └───┬────┘
+      │                                     │                         │
+ ═════╪═ START: MUTUAL TLS HANDSHAKE (auth happens HERE) ═══════════════════
+      │                                     │                         │
+      │ ClientHello ───────────────────────►│                         │
+      │◄─ server cert ─────────────────────│  client verifies server │
+      │  (client checks it chains to CA)    │  cert vs CA + hostname  │
+      │◄─ CertificateRequest (CERT_REQUIRED)│                         │
+      │ client cert + proof-of-private-key ►│ verify chains to SAME CA│
+      │                                     │  ✘ no/again-bad cert →  │
+      │                                     │    HANDSHAKE FAILS      │
+      │                                     │    (never reaches app)  │
+      │◄════════ secure channel established ═│                         │
+      │                                     │                         │
+ ═════╪═ APPLICATION: identity from the verified cert ═════════════════════
+      │ GET /v1/whoami  (NO Authorization header) ─────────────────► │
+      │                                     │ read peer cert off socket
+      │                                     │ CN = identity; SHA-256 fp
+      │                                     │ authenticate(fp): registered
+      │                                     │  AND revoked=0 AND active=1 ──►│
+      │                                     │◄──── client row / None ────────│
+      │                                     │  ✘ unknown/revoked fp → 401
+      │◄─ 200 {client, resources} ──────────│  ✔ serve only its data
+      │                                     │                         │
+ ═════╪═ "FINISH": connection close / revocation ══════════════════════════
+      │ revoke_cert(fp) ────────────────────────────────────────────►│ revoked=1
+      │  → that exact cert fails on its NEXT request (allow-list flip)│
+      ▼                                     ▼                         ▼
+  no header ever sent          identity lived in the transport, not a token
+```
+
+The key property: the client proves possession of a **private key**, not a
+copyable string. A leaked request or log holds nothing replayable — the strength
+over bearer tokens (06–08). Revocation is an allow-list flip on the fingerprint,
+standing in for CRL/OCSP.
+
 ## Revocation without CRL/OCSP
 Real PKI revocation uses CRLs or OCSP. For a self-contained demo we keep an
 allow-list of issued client-cert fingerprints with a `revoked` flag
