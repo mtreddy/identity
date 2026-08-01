@@ -56,6 +56,76 @@ API_KEY=$KEY python client_example.py
 4. **Authorize** — the route (`@require_api_key`) serves only that client's
    resources; anything else returns a generic `401`.
 
+## Flow — how the communication starts and finishes
+
+Unlike 01–05 there is **no browser, no login form, no cookie, no session**. The
+credential is issued **once** at provisioning time (the only moment the full key
+exists in the clear), and from then on the client presents it as a bearer token
+on **every** request. The server never stores the key — only its SHA-256 hash —
+so verification is a hash-and-lookup, and the key is individually **revocable**.
+Because the key rides on every call, the whole exchange **must** be over TLS.
+
+```
+ ┌─────────┐          ┌──────────────────┐   ┌──────────────────┐  ┌────────┐
+ │ Operator│          │ seed.py / issuer │   │ Flask API (app.py)│  │identity│
+ │         │          │  (keys.py)       │   │  127.0.0.1:5000   │  │  .db   │
+ └────┬────┘          └────────┬─────────┘   └─────────┬────────┘  └───┬────┘
+      │                        │                       │               │
+ ═════╪═ ISSUE (once, at provisioning) ════════════════╪═══════════════╪══════
+      │                        │                       │               │
+      │ python seed.py ───────►│ generate_api_key():   │               │
+      │                        │  "sk_live_" + 256 bits (secrets)      │
+      │                        │ store SHA-256(key) + display_prefix ─►│
+      │◄─ full key printed ONCE─│ (raw key never persisted)            │
+      │  sk_live_Xw9a…          │                       │               │
+      │  (copy it now — it's                            │               │
+      │   unrecoverable later)  │                       │               │
+
+ ┌─────────┐                                            │               │
+ │ Client  │  (script / service / agent — holds the key)│               │
+ └────┬────┘                                            │               │
+      │                                                 │               │
+ ═════╪═ START: AUTHENTICATED REQUEST (every call, over TLS) ═══════════════
+      │                                                 │               │
+      │  TLS handshake ◄═══════════════════════════════►│  ← key is a bearer
+      │                                                 │     secret; TLS is
+      │  GET /v1/whoami                                 │     mandatory
+      │  Authorization: Bearer sk_live_Xw9a… ──────────►│               │
+      │                                                 │ _extract_key()│
+      │                                                 │ authenticate():
+      │                                                 │  SHA-256(key) ─────►│
+      │                                                 │  WHERE key_hash=? AND
+      │                                                 │  revoked=0 AND active=1
+      │                                                 │◄── client row / None │
+      │                                                 │  ✔ stamp last_used_at ►│
+      │                                                 │    g.client = client
+      │                                                 │    log "auth ok" → auth.log
+      │◄─ 200 {client_id, name} ────────────────────────│               │
+      │                                                 │               │
+      │  GET /v1/resources (same header) ──────────────►│ get_resources_for_client
+      │◄─ 200 {resources:[…only this client's…]} ───────│───────────────►│
+
+ ═════╪═ FAILURE PATH (missing / malformed / revoked / unknown key) ═════════
+      │                                                 │               │
+      │  GET /v1/whoami   (no or bad key) ─────────────►│ authenticate → None
+      │                                                 │ log "auth failure"
+      │◄─ 401 {error:"unauthorized"}                    │  (ONE generic error —
+      │   WWW-Authenticate: Bearer ─────────────────────│   no case enumeration)
+
+ ═════╪═ "FINISH": REVOCATION (no logout — keys are long-lived) ═════════════
+      │                        │                        │               │
+      │ revoke_api_key(id) ────────────────────────────────────────────►│ revoked=1
+      │                        │                        │  next request with that
+      │                        │                        │  key → 401 (lookup misses)
+      ▼                        ▼                        ▼               ▼
+  key retired            (rotate: issue new key, migrate, revoke old — zero downtime)
+```
+
+There is no "logout": a machine credential has no session to end. The lifecycle
+**finishes** when the key is **revoked** (`revoked=1`), after which the
+hash-lookup misses and every request with it returns `401`. Issuing a second key
+before revoking the first is how you **rotate** without downtime.
+
 ### Why SHA-256 here, not bcrypt
 Passwords are low-entropy and human-chosen, so we hash them *slowly* (bcrypt)
 to resist brute force. An API key is 256 bits of true randomness — it can't be
