@@ -63,6 +63,49 @@ python client_example.py
 - **The app never holds your password** — only a short-lived, scoped access token
   (and it learns *who you are* from the separately-verified `id_token`).
 
+## Flow — how the communication starts and finishes
+
+This is the `../10-openid-connect` flow made tangible: the protected resource is
+a **mailbox**, and the scope that unlocks it is **`mail:read`**. It **starts**
+when the user clicks *Connect my mailbox* and **finishes** when MailViewer
+renders the inbox it fetched with a scoped access token — having learned *who*
+the user is from a separately-verified `id_token`, and never seeing the password.
+
+```
+ actor User+browser     MailViewer (client)     OIDC AS + Resource (app.py)
+      │                       │                          │
+ ═════╪═ AUTHENTICATE + CONSENT (front channel, browser redirects) ══════════
+      │ GET /client/start ───►│ build PKCE + state + nonce│
+      │◄─ 302 /authorize (scope="openid mail:read", …) ──┤
+      │ GET /authorize ─────────────────────────────────►│ login (bcrypt)
+      │ approve "Read the messages in your mailbox" ─────►│ consent → mail:read
+      │◄─ 302 callback?code=…&state=… ───────────────────┤ (one-time code)
+      │ GET /client/callback (code,state) ──►│ state ok?  │
+
+ ═════╪═ TOKEN + IDENTITY (back channel) ════════════════════════════════════
+      │                       │ POST /token (code+verifier) ─────────────►│
+      │                       │◄─ {access_token(scope=mail:read),         │
+      │                       │     id_token: eyJ…(RS256)} ───────────────┤
+      │                       │ verify id_token: JWKS sig, iss, aud==me,  │
+      │                       │  nonce → NOW knows WHO the user is         │
+
+ ═════╪═ ACCESS THE MAILBOX (scope enforced at the resource) ════════════════
+      │                       │ GET /api/mailbox                           │
+      │                       │  Authorization: Bearer access_token ─────►│ mail:read
+      │                       │◄──────────── inbox messages ──────────────┤  in scope? ✔
+      │                       │  (a token with only `openid` and NOT      │
+      │                       │   mail:read → 403 insufficient_scope)     │
+      │◄─ inbox rendered ─────┤                          │
+      ▼                       ▼                          ▼
+  never saw the password  trusts id_token for identity,  "finish": access token
+                          access token for the mailbox    expires; re-consent later
+```
+
+The one lesson this reskin drives home: **authentication ≠ authorization**. The
+`id_token` says who logged in; it's the `mail:read` **scope** in the access token
+— granted only by explicit consent — that actually authorizes reading the inbox.
+A token missing that scope is refused at `/api/mailbox` with **403**.
+
 ## Swapping in a different resource
 The mailbox is just a table + one scoped endpoint. To make this a "read your
 files / calendar / transactions" demo instead, rename `messages`, seed different

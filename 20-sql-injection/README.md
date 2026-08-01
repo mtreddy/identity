@@ -70,6 +70,54 @@ curl 'http://127.0.0.1:5000/safe/login?username=admin%27%20--%20&password=x'
    validates `sort` against an **allow-list** (`{name, price}`) and rejects
    anything else with `400`.
 
+## Flow — how the same attack hits `/vuln` vs `/safe`
+
+Unlike the other mechanisms, there's no session lifecycle here — the "flow" is a
+single **attacker-supplied string** meeting the query builder two different ways.
+On `/vuln/*` the input is **concatenated into the SQL text**, so the driver
+parses it *as SQL*; on `/safe/*` it's a **bound `?` parameter**, so the driver
+treats it *as data*. Same request, opposite outcome.
+
+```
+ ┌──────────┐            ┌──────────────────────────┐          ┌────────┐
+ │ Attacker │            │  Flask app (app.py)      │          │identity│
+ │ (client) │            │  /vuln/*   vs   /safe/*  │          │  .db   │
+ └────┬─────┘            └────────────┬─────────────┘          └───┬────┘
+      │  payload: username = admin' --                             │
+ ═════╪═ VULNERABLE PATH: input becomes SQL ═══════════════════════════════
+      │ GET /vuln/login?username=admin'%20--%20&password=x ──────► │
+      │                             │ db.py builds the query by    │
+      │                             │ string-formatting the input: │
+      │                             │  "…WHERE username='admin' --'"│
+      │                             │  → the "--" comments out the │
+      │                             │    password check ──────────► │ SELECT runs
+      │                             │◄───────── admin row ──────────│  as forged
+      │◄─ 200 "logged in as admin" (NO valid password) ────────────│  SQL
+      │                             │  (endpoint echoes the SQL that ran)
+
+ ═════╪═ SAFE PATH: input stays data ═════════════════════════════════════════
+      │ GET /safe/login?username=admin'%20--%20&password=x ──────► │
+      │                             │ conn.execute(               │
+      │                             │  "…WHERE username = ?",     │
+      │                             │  ("admin' -- ",))  ← bound ──► │ literal
+      │                             │  driver looks up the literal  │ lookup
+      │                             │  string "admin' -- "         │
+      │                             │◄────────── 0 rows ────────────│
+      │◄─ 401 not authenticated ───────────────────────────────────│
+      │                             │
+      │  ORDER BY / identifier case: `sort` is a COLUMN NAME — `?`  │
+      │  can't bind identifiers, so /safe validates it against an   │
+      │  allow-list {name, price} and returns 400 on anything else. │
+      ▼                             ▼                              ▼
+  same four payloads         parameterize values; allow-list identifiers;
+  (bypass/tautology/UNION/    least-privilege DB account as backstop
+   ORDER BY) → all inert on /safe
+```
+
+The rule the whole repo follows: **values** go in as bound `?` parameters (never
+concatenated); **identifiers** (table/column/`ORDER BY`), which can't be bound,
+go through a fixed allow-list. Everything below is defense in depth around that.
+
 ## The layered defenses (defense in depth)
 
 | Layer | What it does |

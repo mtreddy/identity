@@ -48,6 +48,54 @@ python client_example.py                 # headless: raw vs encoded
 In a browser, open `/` and click the payload links: on `/vuln/*` the
 `alert(document.domain)` fires; on `/safe/*` it shows up as harmless text.
 
+## Flow — how the same input renders on `/vuln` vs `/safe`
+
+The "flow" is one attacker-controlled string reaching the **browser** two ways.
+On `/vuln/*` the server concatenates it into raw HTML, so the browser parses
+`<script>` as a **tag and runs it**. On `/safe/*` Jinja autoescaping turns it
+into **text** (`<script>` → `&lt;script&gt;`) and a CSP refuses inline script as
+a backstop. Stored XSS is the dangerous case: the payload is saved once and
+served to **every later viewer**.
+
+```
+ ┌──────────┐        ┌──────────────────────┐        ┌──────────────┐
+ │ Attacker │        │  Our app (app.py)    │        │ Victim's     │
+ │          │        │  /vuln/*  vs /safe/* │        │ browser      │
+ └────┬─────┘        └──────────┬───────────┘        └──────┬───────┘
+      │  payload: <script>alert(document.domain)</script>   │
+ ═════╪═ STORED: attacker plants it once ═══════════════════════════════════
+      │ POST /vuln/comments (payload) ──►│ saved verbatim ──► (DB)
+      │                                  │                    │
+ ═════╪═ VULNERABLE render: input becomes HTML ═══════════════════════════════
+      │                                  │ later: victim GETs the page
+      │                                  │ f"…<div>{payload}</div>…" (raw)
+      │                                  │─── HTML w/ live <script> ──────►│
+      │                                  │                    │ browser PARSES
+      │                                  │                    │ the tag → JS RUNS
+      │                                  │                    │ (acts as the user)
+ ═════╪═ SAFE render: input stays text + CSP ═════════════════════════════════
+      │                                  │ Jinja {{ comment }} autoescapes:
+      │                                  │  &lt;script&gt;… (inert text)
+      │                                  │ + Content-Security-Policy:
+      │                                  │   script-src 'self'  ───────────►│ shows
+      │                                  │                    │ literal text;
+      │                                  │                    │ even if an encoding
+      │                                  │                    │ bug slipped through,
+      │                                  │                    │ CSP blocks inline JS
+      │                                  │                    │
+      │  DOM-based variant: no server — JS sink decides. innerHTML → runs;
+      │  textContent → inert. Fix is choosing the safe sink in the browser.
+      ▼                                  ▼                    ▼
+  one payload            escape on OUTPUT for the context; CSP as second line;
+                         HttpOnly cookie limits the blast radius
+```
+
+The primary fix is **contextual output encoding** (escape at render time, for the
+context you're rendering into) — Jinja does it by default, so `/vuln` had to go
+out of its way with raw f-strings to be unsafe. CSP and the `HttpOnly` session
+cookie (which a working XSS still can't read via `document.cookie` — see
+`../03-auth-robustness`) are the defense-in-depth layers behind it.
+
 ## The layered defenses
 
 | Layer | Where | What it does |

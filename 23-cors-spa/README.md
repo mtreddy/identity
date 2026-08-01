@@ -61,6 +61,54 @@ API_BASE=http://127.0.0.1:5000 python client_example.py
    browser exposes the response; otherwise it **blocks the page from reading it**
    (the request still ran server-side).
 
+## Flow — how a cross-origin call starts and where it's decided
+
+Two origins (different **ports** = different origins): the SPA page at **origin A**
+(`:5001`) wants to read the API at **origin B** (`:5000`). Because the request
+carries `Authorization`, the browser first sends a **preflight `OPTIONS`**, then
+the real request — and crucially the **browser**, not the server, decides whether
+the page may *read* the response, based on the `Access-Control-Allow-Origin`
+header. The server always runs the request; CORS only governs *exposure*.
+
+```
+ ┌──────────────┐          ┌──────────────────────────┐
+ │ SPA page     │          │  API (app.py) — origin B │
+ │ origin A     │          │  /api/data  vs /vuln/data│
+ │ :5001        │          │  :5000                   │
+ └──────┬───────┘          └────────────┬─────────────┘
+        │  fetch(B/api/data, {credentials:'include', headers:{Authorization}})
+ ═══════╪═ PREFLIGHT (non-simple request → OPTIONS first) ══════════════════
+        │ OPTIONS /api/data  Origin: A, Access-Control-Request-* ─────────►│
+        │◄─ 204 Allow-Methods/Headers; Allow-Origin: A;                    │
+        │     Allow-Credentials: true; Vary: Origin ──────────────────────│
+        │  (browser: preflight granted → send the real request)           │
+ ═══════╪═ ACTUAL REQUEST ═══════════════════════════════════════════════════
+        │ GET /api/data  Origin: A + cookies/Authorization ──────────────►│ runs,
+        │◄─ 200 {data}  Access-Control-Allow-Origin: A (echoed, NOT *);   │ authz'd
+        │     Vary: Origin ───────────────────────────────────────────────│
+        │  ── BROWSER DECISION ──                                          │
+        │   Allow-Origin (A) == page origin (A)? ✔ → EXPOSE response to JS │
+        │   (mismatch/absent → server still answered, but browser BLOCKS  │
+        │    the page from reading it)                                     │
+
+ ═══════╪═ THE MISCONFIG: /vuln/data reflects ANY origin + credentials ═════════
+        │ (victim logged in to B, visits evil.example = origin E)         │
+        │ E: fetch(B/vuln/data, {credentials:'include'}) ────────────────►│
+        │◄─ 200 {user data}  Allow-Origin: E (reflected!),                │
+        │     Allow-Credentials: true ────────────────────────────────────│
+        │  browser: Allow-Origin (E) == page origin (E)? ✔ → EXPOSES the  │
+        │  victim's AUTHENTICATED data to the attacker's page             │
+        ▼                          ▼
+   CORS relaxes SOP;         allow-list exact origins, echo the specific one
+   it is NOT authorization    (never * with credentials), always Vary: Origin
+```
+
+The lesson: **CORS is a relaxation of the same-origin policy, not a defense.** The
+"done right" `/api/data` echoes only allow-listed origins (with `Vary: Origin`);
+the "misconfigured" `/vuln/data` reflects *any* `Origin` alongside
+`Allow-Credentials: true`, which hands a logged-in user's authenticated response
+to any site they happen to visit — the credentialed cousin of `Allow-Origin: *`.
+
 ## The misconfiguration (`/vuln/data`)
 Reflecting the request's `Origin` back in `Access-Control-Allow-Origin` **and**
 setting `Allow-Credentials: true` means: a logged-in user who visits

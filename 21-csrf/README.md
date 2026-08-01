@@ -50,6 +50,53 @@ unprotected endpoint) changes your account email to `attacker@evil.example`.
   `csrf_token` rendered into the real form. A cross-site page can't read it (the
   same-origin policy stops it), so a forged POST is rejected with **403**.
 
+## Flow — how the forged request starts and where it dies
+
+The attack **starts** on a page the attacker controls (a different origin) while
+the victim is still logged in to our site. That page auto-submits a hidden form;
+the browser **auto-attaches the victim's session cookie** to the cross-site POST,
+so it arrives authenticated. On `/vuln` that's enough and the email changes; on
+`/safe` it **dies** because it can't carry the session-bound `csrf_token` the
+real form embeds.
+
+```
+ ┌────────────┐        ┌──────────────┐        ┌──────────────────────┐
+ │ attacker   │        │ Victim's     │        │  Our app (app.py)    │
+ │ page (evil)│        │ browser      │        │  127.0.0.1:5000      │
+ └─────┬──────┘        └──────┬───────┘        └──────────┬───────────┘
+       │                      │ (already logged in; holds session cookie)
+ ══════╪═ SETUP: victim is authenticated on our site ═══════════════════════
+       │                      │ POST /login → Set-Cookie: session=… (HttpOnly)
+       │                      │                           │
+ ══════╪═ ATTACK: victim visits the attacker's page ═════════════════════════
+       │ GET /attacker ──────►│                           │
+       │◄ hidden auto-submit form (action=our /change-email) ┤
+       │                      │ browser fires the POST cross-site,
+       │                      │ AUTO-ATTACHING the session cookie:
+       │                      │                           │
+       │        ── against /vuln (no token) ──            │
+       │                      │ POST /vuln/change-email ─►│ cookie present →
+       │                      │  email=attacker@evil ────►│ authenticated;
+       │                      │                           │ NO token checked
+       │                      │◄─ 200 email changed ──────│  ← account taken over
+       │                      │                           │
+       │        ── against /safe (synchronizer token) ──  │
+       │                      │ POST /safe/change-email ─►│ cookie present, but
+       │                      │  (attacker CAN'T read or  │ csrf_token missing/
+       │                      │   guess csrf_token — SOP) │ wrong →
+       │                      │◄─ 403 rejected ───────────│  ← forgery dies here
+       ▼                      ▼                           ▼
+  causes a request      cookie auto-sent regardless   token the cross-site page
+  it can't read a reply of where the POST originated   can't obtain = the defense
+```
+
+Why authentication alone doesn't help: the attacker never needs to **read**
+anything — they only cause a request, and the browser supplies the cookie. The
+**synchronizer token** is what distinguishes a request from our own form (which
+carries it) from a forged one (which can't). In a real browser `SameSite=Lax`
+*also* blocks this POST before the token matters — run `COOKIE_SAMESITE=None` to
+isolate the token as the deciding defense.
+
 ## The three defenses (all used elsewhere in this repo)
 
 | Defense | Where | What it does |
