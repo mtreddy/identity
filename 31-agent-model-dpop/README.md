@@ -78,6 +78,58 @@ python app.py           # http://127.0.0.1:5000
 python client_example.py   # in another shell — shows the stolen-token contrast
 ```
 
+## Flow — how the communication starts and finishes
+
+Same mint→invoke shape as `../30-agent-model-oauth`, now **sender-constrained**.
+The agent holds a DPoP key; it sends a signed **proof** when minting the token
+(so the token comes back carrying `cnf.jkt` = that key's thumbprint and
+`token_type: DPoP`), and a **fresh proof on every** `:invoke`. The gateway
+requires the proof key to match `cnf.jkt` — so a token copied from a prompt or
+log is inert without the key. The `/vuln` foil is the bearer path where that same
+copied token still replays.
+
+```
+ ┌─────────┐          ┌──────────────────────┐      ┌──────────────────────┐
+ │ Agent   │          │ Authorization server │      │ Model gateway (RS)   │
+ │ +priv   │          │ /oauth/token         │      │ /v1/... , PRM        │
+ │ +DPoP   │          └──────────┬───────────┘      └──────────┬───────────┘
+ │  key    │                     │                             │
+ └────┬────┘                     │                             │
+ ═════╪═ MINT: token bound to the DPoP key ═══════════════════════════════════
+      │ POST /oauth/token  (private_key_jwt, scope, resource)   │
+      │  DPoP: proof{htm:POST, htu:/oauth/token, jti, iat, jwk:PUB} ─────────►│
+      │                          │ verify client + DPoP proof;  │
+      │                          │ jkt = thumbprint(jwk)        │
+      │                          │ mint JWT: aud/scope/exp +     │
+      │                          │  cnf={"jkt":jktA}, type=DPoP ►│
+      │◄─ 200 {access_token: eyJ…(cnf=jktA), token_type:"DPoP"} ──────────────│
+      │                          │                             │
+ ═════╪═ INVOKE: token + a FRESH proof per call ════════════════════════════════
+      │ POST /v1/models/gpt-sim:invoke                          │
+      │  Authorization: DPoP eyJ…(cnf=jktA)                     │
+      │  DPoP: proof{htm:POST, htu:this URL, jti', iat',        │
+      │             ath:hash(access_token), jwk:PUB} ─────────────────────────►│
+      │                          │   verify token (JWKS/iss/aud/exp) → scope →
+      │                          │   verify proof (sig/htm/htu/iat/jti/ath) →
+      │                          │   REQUIRE thumbprint(jwk)==cnf.jkt (jktA) →
+      │                          │   model allow-list                │
+      │◄─ 200 {model output} ─────────────────────────────────────────────────│
+      │                          │                             │
+ ═════╪═ THE POINT: a stolen token STRING is inert ═════════════════════════════
+      │ attacker has eyJ…(cnf=jktA) but only their OWN key:      │
+      │  POST /v1/…:invoke  DPoP <proof from attacker key> ──────────────────►│
+      │◄─ 401  (proof jkt=jktB ≠ cnf jktA — the token isn't theirs)           │
+      │  POST /vuln/…:invoke  Authorization: Bearer eyJ… (no proof) ─────────►│
+      │◄─ 200  ← foil: bearer path, no proof-of-possession → replay works     │
+      ▼                          ▼                             ▼
+  every call re-proves      "finish": token expires (5 min); keep the DPoP key
+  possession of the key      in the agent's memory/enclave, never in a prompt
+```
+
+Everything from 30 (audience, scope, model allow-list, `private_key_jwt`) still
+holds; DPoP adds the proof-of-possession layer, so leakage of the token *string*
+— the most likely failure for an agent — no longer means compromise.
+
 ## Threats addressed
 | Threat | Defense |
 |--------|---------|

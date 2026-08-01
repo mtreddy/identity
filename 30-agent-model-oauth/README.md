@@ -104,6 +104,61 @@ endpoint identity — a SPIFFE server SVID / cert pin and a **signed model
 provenance** manifest (which weights actually ran, optionally TEE-attested) —
 is deliberately deferred to `31`/`33`; see [AGENT_MODEL_AUTH.md](../AGENT_MODEL_AUTH.md) §3b.
 
+## Flow — how the communication starts and finishes
+
+An AI agent calls a remote model the OAuth way. It first **discovers and pins**
+the gateway's canonical resource id (so its token can only be used *there*), then
+proves its identity **per token request** with `private_key_jwt` (nothing secret
+on the wire) to get a **short-lived, audience-bound, scoped** access token, and
+the gateway (a Resource Server) re-checks every binding on `:invoke`. The `/vuln`
+foil is the anti-pattern it replaces: a static key with none of those bindings.
+
+```
+ ┌─────────┐          ┌──────────────────────┐      ┌──────────────────────┐
+ │ Agent   │          │ Authorization server │      │ Model gateway (RS)   │
+ │ +priv   │          │ /oauth/token, JWKS   │      │ /v1/... , PRM        │
+ │  key    │          └──────────┬───────────┘      └──────────┬───────────┘
+ └────┬────┘                     │                             │
+ ═════╪═ DISCOVER + PIN the gateway (before any prompt) ═══════════════════════
+      │ GET /.well-known/oauth-protected-resource ───────────────────────────►│
+      │◄─ {resource: https://models.example/api, authorization_servers:[…]} ──│
+      │  pin that canonical `resource` id (RFC 9728)                          │
+      │                          │                             │
+ ═════╪═ MINT a token (client authenticates per request) ══════════════════════
+      │ POST /oauth/token        │                             │
+      │  grant_type=client_credentials                         │
+      │  client_assertion = signed JWT (private_key_jwt, RFC 7523),
+      │  scope=model:invoke  resource=https://models.example/api (RFC 8707) ──►│
+      │                          │ verify assertion vs client's
+      │                          │  REGISTERED public key; jti unseen
+      │                          │ mint RS256 JWT: aud=resource,
+      │                          │  scope, exp=5min, iss ──────►│
+      │◄─ 200 {access_token: eyJ…, token_type:"Bearer", expires_in:300} ──────│
+      │                          │                             │
+ ═════╪═ INVOKE the model (RS re-checks every binding) ═══════════════════════
+      │ POST /v1/models/gpt-sim:invoke  Authorization: Bearer eyJ… ──────────►│
+      │                          │        verify JWS via JWKS ─►│ (fetch keys
+      │                          │◄────── public keys ──────────│  from AS)
+      │                          │        iss ✔ → aud==our resource ✔ →
+      │                          │        exp ✔ → scope ⊇ model:invoke ✔ →
+      │                          │        gpt-sim ∈ this client's allow-list ✔
+      │◄─ 200 {model output} ──────────────────────────────────────────────── │
+      │  (any failure → 401/403 + WWW-Authenticate: Bearer                     │
+      │   resource_metadata="…" so the agent can discover how to auth)         │
+
+ ═════╪═ FOIL + FINISH ═══════════════════════════════════════════════════════
+      │ POST /vuln/v1/models/gpt-sim:invoke  x-api-key: sk-legacy-… ─────────►│
+      │◄─ 200  ← static key, NO aud/scope/exp/allow-list: replayable anywhere │
+      ▼                          ▼                             ▼
+  token pinned to ONE       "finish": token expires in 5 min → mint another;
+  gateway + scope + model    nothing standing to leak (no bearer key at rest)
+```
+
+The four bindings (`exp`, `aud`, `scope`, per-client model allow-list) each kill
+a specific failure of the static key — expiry, cross-upstream replay, over-broad
+access, and calling un-granted models. And because the agent authenticates with
+`private_key_jwt`, there's **no standing secret** in prompts/logs to leak.
+
 ## Threats addressed
 | Threat | Defense |
 |--------|---------|
