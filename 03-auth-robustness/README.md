@@ -42,6 +42,64 @@ verification, against a fixed dummy hash when the account doesn't exist, so both
 paths cost the same. (The generic error text already avoided leaking it in
 words; this closes the timing leak.)
 
+## Flow — how the communication starts and finishes
+
+Same login lifecycle as `../02-secrets-transport`; this step hardens the
+`POST /login` handler itself. Two **rate limiters** gate the POST — 10/min per IP
+*and* 5/min per account email (#5) — before any password work. Then **one** bcrypt
+verification always runs, against a dummy hash when the email is unknown, so
+"no such user" and "wrong password" take the same time (#6). On success the
+signed cookie is set with `HttpOnly`/`Secure`/`SameSite` + a bounded lifetime
+(#4). It **finishes** at logout with `session.clear()`.
+
+```
+  ┌──────────┐            ┌─────────────────────┐          ┌───────────┐
+  │ Browser  │            │  Flask app (app.py) │          │ identity  │
+  │          │            │   127.0.0.1:5000    │          │  .db      │
+  └────┬─────┘            └──────────┬──────────┘          └─────┬─────┘
+       │                             │                           │
+  ═════╪═════ START: TLS + GET LOGIN ╪═══════════════════════════════════
+       │  TLS handshake ◄═══════════►│  (from 02)                │
+       │  GET /login ───────────────►│                           │
+       │◄──────── 200 login.html ────│                           │
+       │                             │                           │
+  ═════╪═════ POST CREDENTIALS ══════╪═══════════════════════════════════
+       │  POST /login (email+pw) ───►│                           │
+       │                             │  rate limit: 10/min per IP  🔒#5
+       │                             │           +  5/min per email 🔒#5
+       │                             │   ✘ over limit → 429 "Too many attempts"
+       │                             │   ✔ under limit ↓          │
+       │                             │  get_user_by_email(email) ──► │
+       │                             │◄──── user row OR None ─────────│
+       │                             │  stored_hash = user's hash    │
+       │                             │    OR _DUMMY_HASH if None  🔒#6
+       │                             │  verify_password() — ALWAYS one
+       │                             │  bcrypt (both paths cost the same)
+       │                             │
+       │                             │  ✔ user AND password_ok:
+       │                             │    session.clear(); set user_id;
+       │                             │    cookie: HttpOnly+Secure+     🔒#4
+       │                             │    SameSite=Lax, 30-min lifetime
+       │  302 → /dashboard           │
+       │◄─ Set-Cookie: session=…sig ─│
+       │                             │  ✘ else → "Invalid email or password."
+       │                             │    (same generic text, same timing)
+
+  ═════════ AUTHENTICATED REQUEST ══════════════════════════════════════
+       │  GET /dashboard (cookie) ──►│ login_required: user_id in session?
+       │                             │ get_resources_for_user() ──► │
+       │◄──────── 200 dashboard.html │◄─────────── resources ─────────│
+
+  ═════════ FINISH: LOGOUT ═════════════════════════════════════════════
+       │  GET /logout ──────────────►│ session.clear()
+       │◄─ 302 /login; Set-Cookie: session= (empty)
+       ▼                             ▼
+   session over               cookie invalidated
+```
+
+🔒#4–#6 are this step's fixes; TLS + secret-key/debug-off carry forward from 02.
+`diff -ru ../02-secrets-transport ./` and compare the Flow sections.
+
 ## Run it
 
 ```bash
