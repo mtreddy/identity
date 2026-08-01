@@ -85,6 +85,65 @@ curl -s http://127.0.0.1:5000/.well-known/jwks.json | python -m json.tool
 Only then does the client trust the claims (`sub`, `email`, …) as the user's
 identity. `client_example.py` and `/client/callback` both do exactly this.
 
+## Flow — how the communication starts and finishes
+
+The Authorization-Code + PKCE skeleton is identical to `../09-oauth2-auth-code-pkce`
+(front channel through the browser, back channel server-to-server). OIDC adds a
+**second token** and a way to trust it: the client requests the `openid` scope +
+a `nonce`, and `/token` returns an **id_token** (RS256-signed JWT *about the
+user*, `aud` = client) alongside the access token. The client verifies the
+id_token against the provider's **JWKS** public key — no shared secret. Marked
+**★** below is everything new versus 09.
+
+```
+ actor User+browser        Client (RP)         OIDC Provider          Resource
+      │                        │                    │                    server
+ ═════╪═ DISCOVERY (once) ═════╪════════════════════╪═════════════════════════
+      │                        │ GET /.well-known/openid-configuration ★ │
+      │                        │◄── endpoints, jwks_uri, algs (RS256) ★──│
+      │                        │ GET /.well-known/jwks.json  → cache ★    │
+      │                        │◄── public keys keyed by `kid` ★ ────────│
+
+ ═════╪═ FRONT CHANNEL: authorize (browser redirects) ══════════════════════
+      │ GET /client/start ────►│ build PKCE verifier + state + nonce ★    │
+      │◄─ 302 /authorize (…, scope="openid profile…", code_challenge,     │
+      │      nonce ★) ─────────┤                    │                    │
+      │ GET /authorize ───────────────────────────►│ authenticate user  │
+      │ log in (bcrypt) + consent ─────────────────►│ (password, from 01)│
+      │◄─ 302 redirect_uri?code=…&state=… ──────────│ (code bound to     │
+      │                        │                    │  user+scope+nonce★+pkce)
+      │ GET /client/callback (code, state) ───────►│                     │
+      │                        │ state matches? ✔   │                    │
+
+ ═════╪═ BACK CHANNEL: token exchange ═══════════════════════════════════════
+      │                        │ POST /token (code + code_verifier) ────►│
+      │                        │           verify PKCE: S256(verifier)==  │
+      │                        │           code_challenge                 │
+      │                        │◄─ 200 { access_token,                    │
+      │                        │         id_token: eyJ…(RS256) ★ } ───────│
+      │                        │                    │                    │
+      │                        │ VALIDATE id_token ★:                     │
+      │                        │  kid → JWKS key; verify RS256 sig;       │
+      │                        │  iss==provider; aud==our client_id;      │
+      │                        │  exp ok; nonce == the one we sent ★      │
+      │                        │  → NOW we know WHO the user is            │
+
+ ═════╪═ USE: call the API with the access token ═══════════════════════════
+      │                        │ GET /api/resources  Bearer access_token ───────►│
+      │                        │◄──────────── the user's resources ──────────────│
+      │                        │ GET /userinfo (openid scope) ★ ─────────►│
+      │                        │◄── {sub,email,name} (must match id_token) ★
+      ▼                        ▼                    ▼                    ▼
+  identity established   client trusts id_token,  "finish": access token expires;
+  WITHOUT a shared secret  not the access token   id_token was a one-shot login proof
+```
+
+The crux (and the difference from 09): the client **must not** read the access
+token to learn who logged in — that token's `aud` is the API, not the client.
+Identity comes only from the **verified id_token**, whose `aud` is the client and
+whose `nonce` ties it to this exact login. RS256 + JWKS means a party that can
+*verify* a token can no longer *mint* one (unlike HS256 in 07–09).
+
 ## Threats addressed (beyond 09)
 
 | Threat | Defense |
