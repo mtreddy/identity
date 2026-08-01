@@ -35,7 +35,60 @@ story (see `../PROVISIONING.md`); `25-signup-verification` provisions *users*.
 | `PUT /register/<id>` | 7592 | registration access token | Replace client metadata (re-validated) |
 | `DELETE /register/<id>` | 7592 | registration access token | Delete the client |
 
-## Threats addressed
+## Flow — how the communication starts and finishes
+
+In `../09-oauth2-auth-code-pkce` the OAuth client is a row `seed.py` writes by
+hand. Here the client **provisions itself**: it calls `POST /register` (gated by
+an initial access token), the server **validates its metadata** (redirect-URI
+allow-list, scope clamped to what's supported, auth method), and returns a fresh
+`client_id`, a one-time `client_secret` (confidential clients only), and a
+per-client `registration_access_token` (RAT). Only *then* does the normal
+Auth-Code + PKCE flow run — with the just-registered client. Its lifecycle
+**finishes** at `DELETE /register/<id>`.
+
+```
+ ┌─────────┐              ┌──────────────────────┐            ┌────────┐
+ │ Client  │              │ OAuth server (app.py)│            │ oauth_ │
+ │ (app)   │              │  127.0.0.1:5026      │            │ clients│
+ └────┬────┘              └──────────┬───────────┘            └───┬────┘
+      │                              │                            │
+ ═════╪═ REGISTER (RFC 7591): self-provision a client ═══════════════════════
+      │ POST /register               │                            │
+      │ Authorization: Bearer <initial access token> ───────────► │ gate:
+      │ {client_name, redirect_uris, │  constant-time compare;    │ fail closed
+      │  auth_method, scope} ────────►│  validate_metadata:        │ if unset
+      │                              │   redirect_uris absolute/https/no-frag;
+      │                              │   scope CLAMPED to supported;
+      │                              │   auth_method ok
+      │                              │  store: client_secret_hash,│
+      │                              │   reg_access_token_hash ──►│
+      │◄─ 201 {client_id, client_secret (ONCE, confidential),     │
+      │        registration_access_token (ONCE)} ─────────────────│
+
+ ═════╪═ USE: the self-registered client runs Auth-Code + PKCE (from 09) ═════
+      │ /authorize (client_id, PKCE S256, redirect_uri exact-match,│
+      │             scope ⊆ granted) → login + consent → code      │
+      │ POST /token  code + code_verifier                          │
+      │  (confidential: + client_secret → verified vs hash;        │
+      │   public "none": PKCE only, no secret) ──────────────────► │
+      │◄─ 200 {access_token} ─────────────────────────────────────│
+
+ ═════╪═ MANAGE (RFC 7592): authed by THIS client's RAT only ═════════════════
+      │ GET /register/<id>  Authorization: Bearer <RAT> ────────► │ read metadata
+      │ PUT /register/<id>  {new metadata} ─────────────────────► │ re-validated
+      │ DELETE /register/<id> ──────────────────────────────────► │ removed
+      │◄─ (unknown client OR wrong RAT → 401, no existence oracle) │
+      ▼                              ▼                            ▼
+  provisioned itself         secret + RAT stored HASHED (raw shown once);
+                             "finish" = DELETE, or the RAT is the only key to it
+```
+
+Two provisioning controls carry the security: the **initial access token** stops
+open-registration abuse (fails closed if unset; `OPEN_REGISTRATION=1` opts into
+the risky open mode), and the **per-client RAT** scopes management to that one
+client — editing or deleting another client, or presenting a bad RAT, both return
+`401` with no existence oracle. This is the *clients* half of provisioning;
+`../25-signup-verification` is the *users* half.
 
 | # | Threat | Defense |
 |---|--------|---------|

@@ -29,6 +29,53 @@ and the ownership check is easy to forget. BFLA (#3) is its function-level twin
 — an admin route that was never linked in the UI but is reachable by anyone who
 guesses the path (obscurity is not authorization).
 
+## Flow — where authentication ends and authorization must begin
+
+Every request below is **already authenticated** — Alice presents a valid bearer
+token. That's exactly the point: authentication established *who* she is, and the
+`/vuln/*` handlers stop there, so she reads Bob's data and escalates herself. The
+`/safe/*` handlers add the missing per-request **authorization** check — object
+ownership, function role, a writable-field allow-list, a public-field serializer.
+Same authenticated request, four different missing checks.
+
+```
+ ┌──────────┐            ┌──────────────────────────┐          ┌────────┐
+ │ Alice    │            │  API (app.py)            │          │ app.db │
+ │ (valid   │            │  /vuln/*   vs   /safe/*  │          │        │
+ │  token)  │            └────────────┬─────────────┘          └───┬────┘
+ └────┬─────┘  Authorization: Bearer <Alice's token>  (auth ✔ on BOTH)
+ ═════╪═ API1 BOLA/IDOR — object-level: do you OWN it? ══════════════════════
+      │ GET /notes/2  (note 2 is Bob's) ─────────────────────────► │
+      │                         │ /vuln: SELECT note WHERE id=2 ──► │ returns
+      │◄─ 200 Bob's note ───────┤  (no owner check)                 │ any note
+      │◄─ 404 ──────────────────┤ /safe: …AND owner_id==caller → 404 (not 403,
+      │                         │        so id isn't an existence oracle)
+
+ ═════╪═ API3 excessive data exposure — response shaping ═══════════════════
+      │ GET /me ─────────────────────────────────────────────────► │
+      │◄─ 200 {…, password_hash, recovery_code, is_admin} ─ /vuln: dict(row)
+      │◄─ 200 {id, email, name} ─────────────────────────  /safe: public-field
+      │                         │                                   allow-list
+
+ ═════╪═ API5 BFLA — function-level: may you call it AT ALL? ═══════════════
+      │ GET /admin/users  (Alice is not admin) ──────────────────► │
+      │◄─ 200 all users ────────┤ /vuln: any authenticated caller   │
+      │◄─ 403 ──────────────────┤ /safe: require caller.is_admin    │
+
+ ═════╪═ API6 mass assignment — field-level: what may you WRITE? ═══════════
+      │ PATCH /me {"name":"A","is_admin":true} ──────────────────► │
+      │◄─ 200 (now is_admin=1!) ┤ /vuln: bind whole body → escalated│
+      │◄─ 200 {name updated} ───┤ /safe: writable-field allow-list  │
+      │                         │        (is_admin ignored)         │
+      ▼                         ▼                                   ▼
+  logged in ≠ allowed     authorize on the server, per object/field/function,
+                          EVERY time — the token proves identity, not permission
+```
+
+The through-line: a valid token answers *who are you*, never *what may you do
+with it*. Those four checks live at the **endpoint**, not in the token — and each
+`/safe` handler is the one line the matching `/vuln` handler forgot.
+
 ## Files
 
 | File | Role |

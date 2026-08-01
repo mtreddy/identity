@@ -30,15 +30,55 @@ This is the **Users** half of the cross-cutting provisioning story (see
 | `client_example.py` | drives signup → read link → verify → login without a browser |
 | `test.py` | happy path **plus** the gate, single-use, expiry, and no-enumeration checks |
 
-## The flow
+## Flow — how the communication starts and finishes
+
+The account exists the moment someone signs up, but it's **inert** until they
+prove control of the address. Signup creates an `email_verified = 0` row and
+emails a **single-use, short-TTL, hashed-at-rest** token; clicking the link flips
+the flag; and the **login gate** refuses a session until then. It **starts** at
+`/signup` and **finishes** when the verified user gets a real session — with an
+identical "check your email" response on both signup and resend so the endpoint
+can't be used to enumerate accounts.
 
 ```
-/signup  ──►  create unverified account  ──►  email a single-use link
-                                                     │
-   user clicks link  ──►  /verify?token=…  ──►  email_verified = 1
-                                                     │
-                              /login  ──►  (gate) allowed only if verified
+ ┌──────────┐        ┌──────────────────────┐     ┌────────┐   ┌───────────┐
+ │ Browser  │        │  Flask app (app.py)  │     │ app.db │   │ mailer /  │
+ │          │        │  (05 defenses inherit)│     │        │   │ outbox.log│
+ └────┬─────┘        └──────────┬───────────┘     └───┬────┘   └─────┬─────┘
+      │                         │                     │              │
+ ═════╪═ SIGN UP (create inert account) ═══════════════════════════════════
+      │ POST /signup (email+pw+csrf) ──►│ password policy (05) ✔    │
+      │                         │ create user email_verified=0 ────►│
+      │                         │ token = 256-bit; store SHA-256(token),
+      │                         │  expires_at ────────────────────►│
+      │                         │ email link ?token=<raw> ─────────────────►│
+      │◄─ 200 "check your email" ┤ (SAME response whether or not the
+      │   (no account oracle)   │  address already existed)         │
+      │                         │                     │              │
+ ═════╪═ VERIFY (prove control of the address) ════════════════════════════
+      │ GET /verify?token=<raw> ──────►│ hash → lookup single-use:  │
+      │                         │ UPDATE…SET email_verified=1        │
+      │                         │  WHERE used=0 AND not expired ────►│
+      │                         │  ✘ reused/expired → invalid        │
+      │◄─ 200 "email verified" ─┤  ✔ verified                        │
+      │                         │  (resend? rate-limited per IP+acct;│
+      │                         │   new link invalidates the old one)│
+      │                         │                     │              │
+ ═════╪═ LOGIN (the gate) + FINISH ════════════════════════════════════════
+      │ POST /login (email+pw) ───────►│ verify_password (bcrypt)   │
+      │                         │ GATE: email_verified == 1?         │
+      │                         │  ✘ no → refused (no session)       │
+      │                         │  ✔ → server-side session (05)      │
+      │◄─ 302 dashboard ────────┤                     │              │
+      ▼                         ▼                     ▼              ▼
+  account usable          possession of the mailbox was the proof; the raw
+                          token existed only in the email (DB holds only its hash)
 ```
+
+Everything from `../05-defense-in-depth` still runs on these routes (CSRF,
+rate limiting, timing-equalized login, hardened cookie, auth logging). The new
+idea is the **verification gate**: an account is provisioned in an unusable state
+and only a link delivered to — and clicked from — the real inbox activates it.
 
 ## Threats addressed
 
