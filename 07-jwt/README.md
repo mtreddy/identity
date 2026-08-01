@@ -70,6 +70,74 @@ issuer=…)`:
 - **`scope`** is enforced per route (`@require_jwt(scope="…")`) for least
   privilege — `analytics-agent` gets **403** on `/v1/admin/stats`.
 
+## Flow — how the communication starts and finishes
+
+The shift from `../06-api-keys` is a **two-phase** exchange. The long-lived API
+key is presented **once** to a token endpoint (`/v1/token`) — the only DB-backed
+step — and swapped for a **short-lived signed JWT**. Every subsequent call
+carries that JWT, and the API verifies it **statelessly**: signature + `alg`
+pin + `aud`/`iss` + `exp` + `scope`, with **no database lookup**. It all rides
+over TLS because both the key and the token are bearer secrets.
+
+```
+ ┌─────────┐              ┌─────────────────────┐            ┌────────┐
+ │ Client  │              │  Flask API (app.py) │            │identity│
+ │(has key)│              │   127.0.0.1:5000    │            │  .db   │
+ └────┬────┘              └──────────┬──────────┘            └───┬────┘
+      │                              │                           │
+ ═════╪═ PHASE 1: EXCHANGE key → token (once per ~15 min, DB-backed) ═════════
+      │                              │                           │
+      │ TLS handshake ◄═════════════►│  ← key + token are bearer secrets
+      │                              │                           │
+      │ POST /v1/token               │                           │
+      │ Authorization: Bearer sk_live_Xw9a… ───────────────────► │
+      │                              │ require_api_key:          │
+      │                              │  authenticate(key): SHA-256 lookup ──► │
+      │                              │◄──── client row (or None → 401) ────── │
+      │                              │ get_client_scopes ──────────────────►  │
+      │                              │ issue_token(): HS256-sign a JWT with
+      │                              │  {iss,aud,sub,name,scope,iat,exp=+900s}
+      │                              │ log "token issued" → auth.log
+      │◄─ 200 {access_token: eyJ… , token_type:"Bearer",         │
+      │        expires_in:900, scope:"resources:read admin"} ────│
+      │  (client caches the JWT; the API key goes back in the vault)
+
+ ═════╪═ PHASE 2: CALL the API with the JWT (every request, STATELESS) ═══════
+      │                              │                           │
+      │ GET /v1/resources            │                           │
+      │ Authorization: Bearer eyJ…(JWT) ───────────────────────► │
+      │                              │ require_jwt("resources:read"):
+      │                              │  verify_token(): jwt.decode(
+      │                              │   algorithms=["HS256"]  ← pin (no alg:none)
+      │                              │   audience=identity-api, issuer=…,
+      │                              │   checks signature + exp)   NO DB LOOKUP
+      │                              │  scope "resources:read" ∈ claims? ✔
+      │◄─ 200 {resources:[…]} ───────│                           │
+      │                              │                           │
+      │ GET /v1/admin/stats  (JWT lacks 'admin') ──────────────► │
+      │◄─ 403 {error:"insufficient_scope", required:"admin"} ────│  ← least privilege
+
+ ═════╪═ FAILURE PATHS (all stateless — decided by the token itself) ═════════
+      │ tampered / alg:none / wrong aud|iss → 401 invalid_token   │
+      │ expired (exp passed)                → 401 token_expired   │
+      │ no token                            → 401 unauthorized    │
+      │                              │       (WWW-Authenticate: Bearer)
+
+ ═════╪═ "FINISH": the token just EXPIRES ═══════════════════════════════════
+      │                              │                           │
+      │ after exp (~15 min) the JWT is dead; go back to PHASE 1.  │
+      ▼                              ▼                           ▼
+  no logout, no revoke      (short TTL IS the revocation story — a leaked
+                             token is only useful until it expires)
+```
+
+Note the asymmetry with 06: **Phase 1 touches the DB** (the key is looked up and
+its scopes read), but **Phase 2 never does** — that statelessness is the whole
+point. The lifecycle **finishes** not with a logout or a revocation call but
+when `exp` passes; because a JWT can't be revoked mid-life, the short TTL *is*
+the containment. (For pre-expiry revocation you'd add a `jti` deny-list — see
+*Further hardening*.)
+
 ## Trade-offs vs. API keys (06)
 
 | | API key (06) | JWT (07) |
