@@ -63,6 +63,55 @@ curl -H "Authorization: Bearer $T" \
 7. **Group membership** — add and remove members via `PATCH`.
 8. **Delete** (deprovision) → `204`; subsequent GET → `404`.
 
+## Flow — how the communication starts and finishes
+
+Unlike every other mechanism here, the "client" is **another system** — the IdP
+(Okta/Entra) — not a browser or an agent acting for itself. It authenticates
+with a high-value **provisioning bearer token** (stored hashed) and drives a
+person's whole lifecycle over `/scim/v2` in `application/scim+json`. The story
+**starts** when someone is hired (create) and **finishes**, security-critically,
+when they leave (deactivate/delete).
+
+```
+ ┌──────────────┐              ┌──────────────────────┐          ┌────────┐
+ │ IdP          │              │ SCIM SP (app.py)     │          │ app.db │
+ │ (Okta/Entra) │              │  /scim/v2            │          │        │
+ └──────┬───────┘              └──────────┬───────────┘          └───┬────┘
+        │  Authorization: Bearer <provisioning token> (hashed at rest)
+ ═══════╪═ JOIN: provision on hire ═══════════════════════════════════════════
+        │ POST /Users {userName, name, active:true} ─────────────► │ insert
+        │◄─ 201 {id, meta:{location, version(ETag)}} ──────────────│
+        │ GET /Users/{id} ──────────────────────────────────────► │
+        │◄─ 200 user resource ────────────────────────────────────│
+        │ GET /Users?filter=userName eq "a@b.com" (reconcile) ──► │
+        │◄─ 200 ListResponse (0/1 result) ────────────────────────│
+        │ POST /Users (duplicate userName) ─────────────────────► │
+        │◄─ 409 {scimType:"uniqueness"} ──────────────────────────│
+
+ ═══════╪═ MOVE: attribute + group changes ══════════════════════════════════
+        │ PUT /Users/{id}  (full replace: e.g. name change) ────► │ replace
+        │◄─ 200 updated resource ─────────────────────────────────│
+        │ PATCH /Groups/{id} {op:add/remove members} ───────────► │ membership
+        │◄─ 200 group ────────────────────────────────────────────│
+
+ ═══════╪═ LEAVE: deprovision (THE security point) ═══════════════════════════
+        │ PATCH /Users/{id} {op:replace, active:false} ─────────► │ active=0
+        │◄─ 200 (access must actually be cut — not just UI login) │
+        │ DELETE /Users/{id} ───────────────────────────────────► │ delete
+        │◄─ 204 No Content ───────────────────────────────────────│
+        │ GET /Users/{id} ──────────────────────────────────────► │
+        │◄─ 404 (gone) ───────────────────────────────────────────│
+        ▼                              ▼                           ▼
+  directory stays in sync     "finish" = deactivate/delete; SCIM exists so that
+                              "removed in the IdP" ⇒ "no access in the app"
+```
+
+The whole point sits in the **LEAVE** phase: orphaned accounts (someone removed
+in the IdP but still live in the app) are a classic breach vector, so
+`active=false`/`DELETE` must *actually* cut access — kill live sessions, API
+keys, and group grants, not just block the next UI login (see *Attack vectors*
+below).
+
 ## SCIM specifics shown
 - `application/scim+json` content type; **ListResponse** and **Error** message
   schemas; `meta` with `resourceType`, `created`/`lastModified`, `location`, and

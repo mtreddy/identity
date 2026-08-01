@@ -27,6 +27,63 @@ What's signed/checked is the point:
 - the authenticator's **sign counter** must strictly increase → **clone
   detection**.
 
+## Flow — how the communication starts and finishes
+
+Nothing phishable is ever transmitted or stored: the device keeps the **private
+key**, the server keeps only the **public key**. Each ceremony is **begin →
+finish**, and the server always starts it by issuing a fresh random
+**challenge**. Registration teaches the server a public key; authentication
+proves possession of the matching private key by **signing** that challenge —
+bound to the site's origin, which is what makes it phishing-resistant.
+
+```
+ ┌──────────────┐          ┌─────────────────────┐          ┌───────────┐
+ │ Browser +    │          │  Flask app (app.py) │          │  app.db   │
+ │ authenticator│          │   (RP: origin/RP-ID)│          │ credentials
+ └──────┬───────┘          └──────────┬──────────┘          └─────┬─────┘
+        │                             │                           │
+ ═══════╪═ REGISTRATION (attestation): learn a public key ═══════════════════
+        │ POST /register/begin ──────►│ make a random challenge   │
+        │◄─ {challenge, rp, user} ────│ (stash it in session)     │
+        │ navigator.credentials.create()                          │
+        │  → NEW keypair for THIS origin; keep private key on device
+        │ POST /register/finish       │                           │
+        │  {attestationObject (pubkey), clientDataJSON} ────────► │
+        │                             │ verify clientData.challenge==sent,
+        │                             │ origin==ours, rpIdHash==SHA-256(RP ID)
+        │                             │ store pubkey + credId + counter ►│
+        │◄─ 200 registered ───────────│                           │
+
+ ═══════╪═ AUTHENTICATION (assertion): prove the private key ═════════════════
+        │ POST /login/begin ─────────►│ fresh challenge (per login)
+        │◄─ {challenge, allowCreds} ──│                           │
+        │ navigator.credentials.get() │                           │
+        │  → device SIGNS authenticatorData || SHA-256(clientDataJSON)
+        │ POST /login/finish          │                           │
+        │  {authenticatorData, signature, clientDataJSON} ──────► │
+        │                             │ look up stored pubkey ◄───│
+        │                             │ verify: origin==ours,     │
+        │                             │  rpIdHash==SHA-256(RP ID), │
+        │                             │  signature vs pubkey,      │
+        │                             │  counter STRICTLY > stored │
+        │                             │ update counter ──────────►│
+        │◄─ 200 signed in ────────────│                           │
+
+ ═══════╪═ ATTACKS (all rejected) ════════════════════════════════════════════
+        │ look-alike site relays the ceremony → clientData.origin ≠ ours → fail
+        │ tampered authenticatorData/signature → sig verify fails
+        │ cloned authenticator (counter ≤ stored) → clone detected
+        │ replayed old assertion → challenge won't match the fresh one
+        ▼                             ▼                           ▼
+   no secret ever sent      "finish": server-side session as usual; the passkey
+                            stays on the device — a DB leak yields only pubkeys
+```
+
+The crux vs. TOTP (16): a fake site can relay a **typed** 6-digit code, but it
+cannot obtain a signature bound to the **real origin** — the `origin` and
+`rpIdHash` are inside what the device signs and the server re-checks, so a
+credential minted for `example.com` is worthless to `examp1e.com`.
+
 ## Files
 
 | File | Role |

@@ -54,6 +54,56 @@ TOTP_SECRET=<from seed.py> API_BASE=http://127.0.0.1:5000 python client_example.
 4. **`/setup`** — enrollment: shows the secret + `otpauth` URI and requires one
    valid code to confirm the authenticator is in sync before enabling.
 
+## Flow — how the communication starts and finishes
+
+Login is now **two steps**. Password (factor 1, *something you know*) only earns
+a **pending** session; the 6-digit TOTP code (factor 2, *something you have*)
+upgrades it to **full**. Both sides compute the same code from a shared Base32
+secret and the current 30-second time step — the code itself is never sent at
+enrollment. It **finishes** at logout.
+
+```
+ ┌──────────┐            ┌─────────────────────┐          ┌───────────┐
+ │ Browser  │            │  Flask app (app.py) │          │  app.db   │
+ └────┬─────┘            └──────────┬──────────┘          └─────┬─────┘
+      │                             │                           │
+ ═════╪═ ENROLL (once, /setup) ═════════════════════════════════════════════
+      │ GET /setup ────────────────►│ generate_secret(); show
+      │◄─ secret + otpauth:// URI ──│ QR / Base32 (add to app)
+      │ POST /setup (one code) ─────►│ totp.verify() confirms in-sync
+      │                             │ → set totp_enabled=1 ────►│
+      │                             │                           │
+ ═════╪═ FACTOR 1: password ════════════════════════════════════════════════
+      │ POST /login (email+pw) ────►│ bcrypt verify_password    │
+      │                             │◄── user + totp_secret ────│
+      │                             │  ✔ pw ok AND totp_enabled:│
+      │                             │    session = PENDING (factor 1 only)
+      │◄─ 302 /verify ──────────────│  (no TOTP? → full session, done)
+      │                             │
+ ═════╪═ FACTOR 2: TOTP code ═══════════════════════════════════════════════
+      │ GET /verify ───────────────►│ (requires a pending session)
+      │◄─ code entry form ──────────│                           │
+      │ POST /verify (6 digits) ───►│ rate limit 5/min per pending user
+      │                             │  ✘ over → 429             │
+      │                             │ totp.verify(code, ±1 step,│
+      │                             │   hmac.compare_digest)    │
+      │                             │  ✘ wrong/expired → retry  │
+      │                             │  ✔ → session = FULL       │
+      │◄─ 302 / ────────────────────│                           │
+      │                             │
+ ═════╪═ PROTECTED + FINISH ════════════════════════════════════════════════
+      │ GET /  (needs FULL session) ►│ pending (pw-only) → bounced to /login
+      │◄─ 200 protected page ───────│
+      │ GET /logout ───────────────►│ session.clear()
+      ▼                             ▼
+  signed out                  both factors required next time
+```
+
+The security point: a stolen password stops at the **pending** session — it
+never reaches the protected page without the current code, and the code rotates
+every 30 s with only ±1 step accepted, so a phished/replayed code has a tiny
+window. WebAuthn (`../17-webauthn`) closes the remaining relay gap.
+
 ## Threats addressed
 - **Stolen/reused password:** useless without the current TOTP code.
 - **Phishing/replay within a step:** codes rotate every 30s and only ±1 step is
