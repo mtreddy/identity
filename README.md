@@ -216,6 +216,14 @@ token bit-widths), the *match-hardness-to-entropy* principle (slow hash for
 passwords, fast for keys), the algorithm-pinning caveat, and the post-quantum
 horizon. See [ALGORITHMS.md](ALGORITHMS.md).
 
+## Security verification flow
+
+How the repo keeps **real** vulnerabilities from shipping while the
+**intentional** `/vuln` demos stay contained: the five-step flow (threat-first →
+safe defaults → **assert the security negatives** → contain intentional vulns →
+`run-tests.sh` gate), the per-family list of negatives each `test.py` must
+assert, and a pre-merge checklist. See [SECURITY.md](SECURITY.md).
+
 ## Next mechanisms (planned)
 See [TODO.md](TODO.md) for the backlog — next up are **magic-link / email OTP**
 and **admin/invite-based** user provisioning, plus enhancements to existing
