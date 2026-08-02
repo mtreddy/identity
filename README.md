@@ -196,6 +196,16 @@ authorize broadly and are trusted implicitly, toward unshared, short-lived,
 key-bound proofs that authorize narrowly and are verified at every hop. See
 [PATTERNS.md](PATTERNS.md).
 
+## Where trust is anchored
+
+The root-of-trust view: **what** each mechanism ultimately trusts, **how** that
+anchor is planted (there's no single global CA — five classes of anchor, from
+symmetric secrets to PKI to out-of-band possession), and how to secure each
+**end to end**. The unifying point — *trust is never created at runtime; it's
+planted once at provisioning and chained to thereafter* — plus a per-mechanism
+root-of-trust + hardening table and the attestation frontier that closes the
+bootstrap gap. See [TRUST.md](TRUST.md).
+
 ## Next mechanisms (planned)
 See [TODO.md](TODO.md) for the backlog — next up are **magic-link / email OTP**
 and **admin/invite-based** user provisioning, plus enhancements to existing
