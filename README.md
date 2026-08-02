@@ -186,6 +186,16 @@ python bootstrap.py 26            # provision one (prefix is enough)
 python bootstrap.py --all         # provision every mechanism
 ```
 
+## Design patterns & how they evolved
+
+The cross-cutting synthesis: the recurring **security design patterns** under all
+30 mechanisms (store-the-proof-not-the-secret, the gatekeeper decorator, least
+privilege, proof-of-possession over bearer, delegation without secret-sharing, …)
+and the **evolutionary arc** they trace — from shared long-lived secrets that
+authorize broadly and are trusted implicitly, toward unshared, short-lived,
+key-bound proofs that authorize narrowly and are verified at every hop. See
+[PATTERNS.md](PATTERNS.md).
+
 ## Next mechanisms (planned)
 See [TODO.md](TODO.md) for the backlog — next up are **magic-link / email OTP**
 and **admin/invite-based** user provisioning, plus enhancements to existing
