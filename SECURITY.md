@@ -119,13 +119,15 @@ change done, then the full suite before merge.
 
 - **Covers:** functional security correctness — that each mechanism enforces what
   it claims, verified by negative tests, and that intentional vulns stay
-  contained. This is the gate every change passes.
+  contained. This is the gate every change passes. **It runs automatically in
+  CI** (`.github/workflows/tests.yml`) on every push and PR, so a regression that
+  exposes a real vulnerability fails the build.
 - **Does not cover (by design, for a localhost teaching repo):** automated SAST,
   dependency-CVE scanning, fuzzing, or a hardened deployment posture. Deps are
   pinned in each `requirements.txt`; production hardening notes live in each
   mechanism's **Limitations / further hardening** section and in
-  [TRUST.md](TRUST.md) §3. If this were productized, CI running the suite on every
-  push, plus `bandit`/`pip-audit`, would be the next layer.
+  [TRUST.md](TRUST.md) §3. Adding `bandit` (SAST) and `pip-audit` (dependency
+  CVEs) as further CI jobs would be the next layer.
 
 > **Scope reminder.** This repo is bound to localhost against local SQLite for
 > learning. The `/vuln` endpoints are intentionally exploitable *in that sandbox*

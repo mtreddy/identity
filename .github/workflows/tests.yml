@@ -1,0 +1,39 @@
+name: tests
+
+# Runs every mechanism's test.py (each in its own venv) on push and PR.
+# The test suites assert the SECURITY NEGATIVES — wrong PKCE verifier, alg:none
+# id_tokens, replayed DPoP proofs, untrusted CAs, tampered SAML, the SQLi
+# payloads, stolen-token replays — so a regression that exposes a real
+# vulnerability fails the build. See SECURITY.md for the verification flow.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: pip-${{ runner.os }}-
+
+      - name: Run all mechanism test suites
+        # Pin the interpreter run-tests.sh uses to this job's Python 3.12.
+        run: PYTHON="$(command -v python)" bash run-tests.sh
