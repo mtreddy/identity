@@ -134,3 +134,13 @@ change done, then the full suite before merge.
 > and must not be deployed. "No vulnerabilities exposed" = the **safe paths hold**
 > (asserted) and the **unsafe paths stay contained** (localhost + prefix +
 > documented).
+
+## Point-in-time review record
+
+Beyond the automated suite, the hand-rolled cryptographic verifiers (WebAuthn,
+TOTP, DPoP, PKCE, `private_key_jwt`, SAML/XSW, mTLS, cert-binding, SPIFFE) get a
+periodic manual code-level review — where a subtle bug would be a real bypass a
+happy-path test wouldn't catch. The latest is
+[SECURITY-REVIEW.md](SECURITY-REVIEW.md) (2026-08-02: no exploitable
+vulnerabilities; two optional hygiene tidy-ups noted). Re-run it whenever a
+verifier changes.
