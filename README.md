@@ -206,6 +206,16 @@ planted once at provisioning and chained to thereafter* — plus a per-mechanism
 root-of-trust + hardening table and the attestation frontier that closes the
 bootstrap gap. See [TRUST.md](TRUST.md).
 
+## The algorithms underneath
+
+What primitive actually does the work in each mechanism, and **why it's secure**:
+the six hardness assumptions the whole catalog rests on (search-space, one-wayness,
+economic-cost/slow-KDF, MAC unforgeability, trapdoor/asymmetric, key-exchange),
+mapped to exact primitives and parameters (bcrypt cost, RSA-2048, P-256, SHA-256,
+token bit-widths), the *match-hardness-to-entropy* principle (slow hash for
+passwords, fast for keys), the algorithm-pinning caveat, and the post-quantum
+horizon. See [ALGORITHMS.md](ALGORITHMS.md).
+
 ## Next mechanisms (planned)
 See [TODO.md](TODO.md) for the backlog — next up are **magic-link / email OTP**
 and **admin/invite-based** user provisioning, plus enhancements to existing
