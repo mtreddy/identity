@@ -162,6 +162,7 @@ Cross-cutting web-security topics that underpin the mechanisms above.
 | [`22-xss`](22-xss/) | **XSS attack vs. defense:** reflected + stored + DOM payloads; the same `<script>` reflects raw (would execute) on `/vuln` and is encoded to inert text on `/safe`. Shows **output encoding** (Jinja autoescaping), **Content-Security-Policy**, and **`HttpOnly`** cookies |
 | [`23-cors-spa`](23-cors-spa/) | **CORS + browser SPA:** a real two-origin setup (SPA on one port, API on another); correct **preflight** + origin **allow-list** + credentials vs. the reflect-any-origin **misconfiguration**. Teaches that **CORS relaxes the same-origin policy — it is not a defense** |
 | [`27-rest-api-authz`](27-rest-api-authz/) | **REST API authorization:** the bugs authentication doesn't fix — **BOLA/IDOR**, **BFLA**, **mass assignment**, and **excessive data exposure** (OWASP API1/3/5/6) as `/vuln` vs `/safe` pairs. Every request is authenticated; the fix is object-, function-, and field-level checks at the endpoint + a response allow-list |
+| [`34-siem-audit-webhook`](34-siem-audit-webhook/) | **SIEM audit webhook:** the *"ship logs to alerting"* step every other mechanism ends on, done safely — structured audit events **HMAC-signed** and POSTed to a receiver that verifies **authenticity, freshness (timestamp), and uniqueness (nonce)** before storing them. `/vuln/ingest` (verification removed) shows an unauthenticated webhook accepting a forged `role.granted admin` and a replay |
 
 ## Provisioning & bootstrap
 
@@ -189,7 +190,7 @@ python bootstrap.py --all         # provision every mechanism
 ## Design patterns & how they evolved
 
 The cross-cutting synthesis: the recurring **security design patterns** under all
-30 mechanisms (store-the-proof-not-the-secret, the gatekeeper decorator, least
+31 mechanisms (store-the-proof-not-the-secret, the gatekeeper decorator, least
 privilege, proof-of-possession over bearer, delegation without secret-sharing, …)
 and the **evolutionary arc** they trace — from shared long-lived secrets that
 authorize broadly and are trusted implicitly, toward unshared, short-lived,

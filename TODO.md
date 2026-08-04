@@ -125,6 +125,15 @@ style (each `/vuln` vs `/safe`, OWASP API Security Top 10):
   auth on `11-mtls`. NOTE: departs from the Flask+SQLite convention
   (`grpcio`/`protobuf`, a `.proto`) — a deliberate, documented exception.
 
+### Detection & audit pipeline
+
+- [x] **SIEM audit webhook** — done as `34-siem-audit-webhook`: the
+  *"ship logs to alerting"* step every mechanism ends on, done safely.
+  Structured audit events **HMAC-signed** (`ts.nonce.body`) and POSTed to a
+  receiver that verifies authenticity + freshness + nonce before storing;
+  `/vuln/ingest` accepts a forged `role.granted admin` and a replay. `test.py`
+  passes (9 checks). Further: shared nonce store, retries/DLQ, JWS for fan-out.
+
 ## Enhancements to existing mechanisms
 
 - [ ] **16-totp** — one-time **backup/recovery codes**; reject reuse of a code

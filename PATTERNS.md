@@ -3,7 +3,7 @@
 Every mechanism in this repo authenticates *something* — a user, an app, a
 workload, an agent. This document is the cross-cutting answer to "is there a
 pattern underneath all of them, and how did these techniques get here?" It reads
-the 30 mechanisms not as a list but as **one design skeleton** instantiated at
+the 31 mechanisms not as a list but as **one design skeleton** instantiated at
 increasing sophistication, and as an **evolutionary arc** driven by threats.
 
 It's the conceptual companion to [PROVISIONING.md](PROVISIONING.md) (where
@@ -109,10 +109,24 @@ logging + error pages; `04` stacks CSRF + headers + hash-prehashing; the
 self-service signup + verification for users (25), SCIM for IdP-driven lifecycle
 (18), Dynamic Client Registration for clients (26). See PROVISIONING.md.
 
+### Sign what you emit (a tamper-evident audit trail)
+Almost every mechanism's README ends with *"ship the logs to alerting"* — but a
+log a SIEM receives over the network is only as trustworthy as its sender. `34`
+closes that loop: audit events are **HMAC-signed** so the receiver can prove
+authenticity + integrity before storing them, and the *same* freshness tools
+seen elsewhere defend the pipeline — a **timestamp window** (time-boxing, §2's
+containment) plus a remembered **nonce** (the replay defense that DPoP's `jti`
+and WebAuthn's challenge use, 13/17/31). It is "store the proof, not the secret"
+turned outward: the audit stream is the artifact, so make it unforgeable. The
+`/vuln` twin — an unverified webhook that accepts a forged `role.granted admin` —
+shows why an authenticated *ingress* isn't enough if the *egress* is trusted
+blindly.
+
 These map onto the classic literature: **valet-key**, **claims-based identity**
 (JWT/SAML/OIDC), the **ticket** lineage (Kerberos → SAML assertion → JWT),
-**federated identity**, and **trusted-subsystem vs. delegation/impersonation**
-(exactly the `30` → `32` distinction).
+**federated identity**, **trusted-subsystem vs. delegation/impersonation**
+(exactly the `30` → `32` distinction), and **message authentication /
+non-repudiation** for a tamper-evident audit trail (`34`).
 
 ---
 
@@ -190,3 +204,5 @@ caller.
 - **Identity ≠ permission:** `27` (read this one whenever "but they're logged in"
   feels like enough).
 - **Where identities come from:** PROVISIONING.md, `25`, `26`, `18`.
+- **Trusting the audit trail itself:** `34` (read this one whenever a mechanism's
+  README says "ship the logs to alerting").
